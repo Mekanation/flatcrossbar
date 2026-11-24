@@ -62,10 +62,12 @@ local DEFAULTS = {
 }
 
 BINDING_HEADER_FLATCROSSBAR = "FlatCrossbar"
+-- A binding whose name is "CLICK <frame>:<button>" clicks that button (the game reads
+-- the name; the body stays empty), so these are the names the Key Bindings screen shows.
 for i = 1, NUM_BUTTONS do
-  _G["BINDING_NAME_FLATCROSSBAR" .. i] = "Crossbar button " .. i
+  _G["BINDING_NAME_CLICK FlatCrossbarButton" .. i .. ":LeftButton"] = "Crossbar button " .. i
 end
-BINDING_NAME_FLATCROSSBARWHEEL = "Crossbar wheel (hold)"
+_G["BINDING_NAME_CLICK FlatCrossbarWheelButton:LeftButton"] = "Crossbar wheel (hold)"
 BINDING_NAME_FLATCROSSBARWHEELPAGENEXT = "Next wheel page"
 BINDING_NAME_FLATCROSSBARWHEELPAGEPREV = "Previous wheel page"
 BINDING_NAME_FLATCROSSBARTOGGLEMODE = "Toggle keyboard / controller keybinds"
