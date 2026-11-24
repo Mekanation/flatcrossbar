@@ -117,3 +117,11 @@ Not checked in the real client: that an override binding to `GAMEPADACTIONBUTTON
 The wheel is bound to L3 (press the left stick in) by default: hold it to open the wheel, aim with the right stick, release to use the slice. While the wheel is open the D-pad turns its pages instead of using its buttons: left for the previous page, right for the next. It only opens out of combat. L3 stops doing whatever the game had on it while the controller binds are live. `/fcb bindto wheel` moves the wheel to another button, and `/fcb clear wheel` frees L3.
 
 Not checked in the real client: that L3 arrives as `PADLSTICK`, and that the D-pad press is swallowed cleanly while the wheel is open.
+
+## What the wheel holds, and LT / RT as modifiers
+
+The wheel does not use the crossbar's slots. It reads the normal keyboard and mouse action bars, **7 to 10** by default (48 slots, 6 pages of 8). Fill those bars the usual way (turn them on in the action bar settings), or drop an action straight onto a wheel slice. `/fcb wheelbars 6 7 8` picks other bars. Any slot that would fall in the crossbar's own storage is skipped, with a warning.
+
+The bars are bound under Shift (LT) and Ctrl (RT). The game turns a controller button into those with two settings, and a fresh install can have Ctrl on the left bumper instead of RT. `/fcb emulate` sets `GamePadEmulateShift` to `PADLTRIGGER` and `GamePadEmulateCtrl` to `PADRTRIGGER`; at login the addon says so if they differ. `/fcb status` shows the current values. The Alt setting is left alone (the LB bar is Alt, which Steam Input can send).
+
+Not checked in the real client: the action slot numbers for bars 9 and 10, and that these two settings exist on Forever as they do on Retail.

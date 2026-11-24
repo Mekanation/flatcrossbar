@@ -88,6 +88,9 @@ PickupAction = function() end
 PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
 BINDS = 0
+local cvars = { GamePadEmulateShift = 'PADLTRIGGER', GamePadEmulateCtrl = 'PADLSHOULDER', GamePadEmulateAlt = 'NONE' }
+GetCVar = function(n) return cvars[n] end
+SetCVar = function(n, v) cvars[n] = v end
 InputIconTextureSetUtility = { GetNormalActiveInputIconButtonTexture = function(k) return 'atlas-' .. k end }
 SetOverrideBinding = function(owner, pri, key, cmd) BINDS = BINDS + 1; note(('bindcmd %s -> %s'):format(key, cmd)) end
 SetOverrideBindingClick = function(owner, pri, key, name, btn) BINDS = BINDS + 1; note(('bind %s -> %s:%s'):format(key, name, btn)) end
@@ -245,6 +248,11 @@ note('glyph shown without icons: ' .. tostring(G.FlatCrossbarButton1.Glyph:IsSho
 InputIconTextureSetUtility = keep
 try('/fcb keys on', slash, 'keys')
 try('/fcb keys off', slash, 'keys')
+try('/fcb wheelbars', slash, 'wheelbars')
+try('/fcb wheelbars 6 7', slash, 'wheelbars 6 7')
+try('/fcb wheelbars 7 8 9 10', slash, 'wheelbars 7 8 9 10')
+try('/fcb emulate', slash, 'emulate')
+note('ctrl emulated by: ' .. tostring(cvars.GamePadEmulateCtrl))
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

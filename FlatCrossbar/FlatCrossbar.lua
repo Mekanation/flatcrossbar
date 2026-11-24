@@ -31,7 +31,7 @@ local BUTTON_SIZE = 36
 local SPACING = 3
 local HEADER_HEIGHT = 18
 local WHEEL_SLICES = 8
-local WHEEL_PAGES = math.ceil(NUM_BUTTONS / WHEEL_SLICES)
+local WHEEL_PAGES = 6 -- set from the chosen action bars (buildWheelSlots)
 local WHEEL_RADIUS = 92
 local WHEEL_SLICE_SIZE = 50
 local STICK_DEADZONE = 0.5
@@ -50,6 +50,7 @@ local DEFAULTS = {
   yieldFrames = {},
   fade = true,
   fadeAlpha = 0.3,
+  wheelBars = { 7, 8, 9, 10 },
   autoScale = true,
   groupPoints = {},
   scale = 1,
@@ -805,18 +806,50 @@ end
 
 local wheelSel -- slice being aimed at, or nil
 
-local function wheelButtonIndex(slice)
-  return (db.wheelPage - 1) * WHEEL_SLICES + slice
+-- The wheel's actions are not the crossbar's: they sit on the normal keyboard and
+-- mouse action bars (7-10 by default), so the two never share a slot. Action slot
+-- ranges per bar, from the pages in Blizzard_ActionBar's MultiActionBars: bar 2 is
+-- page 6, 3 is 5, 4 is 3, 5 is 4, then 6, 7 and 8 are pages 13-15; 9 and 10 carry on.
+local BAR_PAGE = { [1] = 1, [2] = 6, [3] = 5, [4] = 3, [5] = 4, [6] = 13, [7] = 14, [8] = 15, [9] = 16, [10] = 17 }
+local BAR_SIZE = 12
+local wheelSlots = {}
+local wheelNotice
+
+local function buildWheelSlots()
+  wipe(wheelSlots)
+  local limit = C_GamepadUI and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex
+    and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex()
+  local skipped = 0
+  for _, bar in ipairs(db.wheelBars) do
+    local first = ((BAR_PAGE[bar] or (bar + 7)) - 1) * BAR_SIZE + 1
+    for n = 0, BAR_SIZE - 1 do
+      local slot = first + n
+      -- never touch the crossbar's own storage
+      if limit and slot >= limit then
+        skipped = skipped + 1
+      else
+        wheelSlots[#wheelSlots + 1] = slot
+      end
+    end
+  end
+  WHEEL_PAGES = math.max(1, math.ceil(#wheelSlots / WHEEL_SLICES))
+  db.wheelPage = math.max(1, math.min(WHEEL_PAGES, db.wheelPage))
+  wheelNotice = skipped > 0
+    and ("the wheel skips " .. skipped .. " slots that are the crossbar's own storage (it starts at slot " .. tostring(limit)
+      .. "); pick other bars with /fcb wheelbars.") or nil
+end
+
+local function wheelSlot(slice)
+  return wheelSlots[(db.wheelPage - 1) * WHEEL_SLICES + slice]
 end
 
 updateWheel = function()
   if not (wheel and wheel:IsShown()) then return end
   wheel.pageText:SetText(db.wheelPage .. "/" .. WHEEL_PAGES)
   for i, sl in ipairs(slices) do
-    local btn = buttons[wheelButtonIndex(i)]
-    local action = btn and btn:GetAttribute("action")
+    local action = wheelSlot(i)
     updateButton(sl, action or false)
-    sl:SetAlpha(btn and 1 or 0.35)
+    sl:SetAlpha(action and 1 or 0.35)
     sl.selected:SetShown(wheelSel == i)
   end
 end
@@ -826,9 +859,9 @@ end
 -- can't change in combat, which is why the wheel doesn't open then.
 local function setWheelSelection(slice)
   if InCombatLockdown() then return end
-  if slice and not buttons[wheelButtonIndex(slice)] then slice = nil end
+  if slice and not wheelSlot(slice) then slice = nil end
   wheelSel = slice
-  local action = slice and buttons[wheelButtonIndex(slice)]:GetAttribute("action")
+  local action = slice and wheelSlot(slice)
   if action then
     wheelHeaderButton:SetAttribute("type", "action")
     wheelHeaderButton:SetAttribute("action", action)
@@ -939,6 +972,23 @@ local function createWheel()
 
   for i = 1, WHEEL_SLICES do
     slices[i] = createSlice(i)
+    -- Drop an action on a slice to put it on that action bar slot; drag one off
+    -- (hold Shift when locked) to pick it up.
+    slices[i]:RegisterForDrag("LeftButton")
+    slices[i]:SetScript("OnDragStart", function()
+      local slot = wheelSlot(i)
+      if slot and not InCombatLockdown() and (not db.locked or IsShiftKeyDown()) then
+        PickupAction(slot)
+        updateWheel()
+      end
+    end)
+    slices[i]:SetScript("OnReceiveDrag", function()
+      local slot = wheelSlot(i)
+      if slot and not InCombatLockdown() then
+        PlaceAction(slot)
+        updateWheel()
+      end
+    end)
   end
 
   wheel:SetScript("OnShow", function() updateAll() end)
@@ -1256,6 +1306,31 @@ local function toggleKeyLogger()
   end
 end
 
+-- LT and RT as Shift and Ctrl -----------------------------------------------------
+
+-- The bars are bound under Shift (LT) and Ctrl (RT); the game turns a controller
+-- button into those with these settings.
+local EMULATE = { GamePadEmulateShift = "PADLTRIGGER", GamePadEmulateCtrl = "PADRTRIGGER" }
+
+local function cvarValue(name)
+  local ok, value = pcall(GetCVar, name)
+  return ok and value or nil
+end
+
+local function emulationText()
+  return "Shift is " .. tostring(cvarValue("GamePadEmulateShift")) .. " (LT is PADLTRIGGER), Ctrl is "
+    .. tostring(cvarValue("GamePadEmulateCtrl")) .. " (RT is PADRTRIGGER), Alt is "
+    .. tostring(cvarValue("GamePadEmulateAlt"))
+end
+
+local function emulationMismatch()
+  for name, button in pairs(EMULATE) do
+    local value = cvarValue(name)
+    if value and value ~= button then return true end
+  end
+  return false
+end
+
 local function onInterfaceTransition()
   if db and db.mode == "auto" then applyBindings() end
   if db then applyBlizzardVisibility() end
@@ -1348,6 +1423,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
       db.extraSeedVersion = 3
     end
     local built, err = pcall(function()
+      buildWheelSlots()
       createFrames()
       restorePosition()
       applyLock()
@@ -1379,6 +1455,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     applyBindings()
     applyBlizzardVisibility()
     if db.autoMacros then ensureMacros() end
+    if wheelNotice then print_(wheelNotice) end
+    if emulationMismatch() then
+      print_("LT and RT aren't set up as Shift and Ctrl yet, which the bars need. Type /fcb emulate to set them ("
+        .. emulationText() .. ").")
+    end
   elseif event == "PLAYER_REGEN_DISABLED" then
     wheel:Hide()
   elseif event == "PLAYER_REGEN_ENABLED" then
@@ -1419,6 +1500,8 @@ local HELP = {
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
+  "/fcb wheelbars 7 8 9 10 - the keyboard action bars the wheel uses (not the crossbar's)",
+  "/fcb emulate - make LT act as Shift and RT as Ctrl, which the bars are bound under",
   "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
   "/fcb fade [on|off|0-1] - dim the other bars while one is held (LT, RT, LB, RB)",
   "/fcb macros [create|on|off] - the FCB Tab Enemy / FCB Tab Friend macros (made on login if missing)",
@@ -1438,6 +1521,11 @@ SlashCmdList.FLATCROSSBAR = function(input)
 
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
+    print_("wheel: action bars " .. table.concat(db.wheelBars, ", ") .. ", " .. #wheelSlots .. " slots"
+      .. (wheelSlots[1] and (" (" .. wheelSlots[1] .. "-" .. wheelSlots[#wheelSlots] .. ")") or "")
+      .. ", crossbar storage starts at " .. tostring(C_GamepadUI and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex
+        and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex()))
+    print_("modifiers: " .. emulationText())
     print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", groups: " .. #groupFrames .. ", locked: " .. tostring(db.locked))
     print_("input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode() .. ", stepping aside: " .. tostring(yielding))
     if container then
@@ -1529,6 +1617,25 @@ SlashCmdList.FLATCROSSBAR = function(input)
     elseif n and n >= 0 and n <= 1 then db.fade = true; db.fadeAlpha = n
     elseif arg ~= "" then return print_("/fcb fade on|off|0-1") end
     print_("fade " .. (db.fade and ("on, other bars at " .. db.fadeAlpha) or "off"))
+  elseif cmd == "wheelbars" then
+    local bars = {}
+    for digits in arg:gmatch("%d+") do
+      local bar = tonumber(digits)
+      if bar >= 1 and bar <= 10 then bars[#bars + 1] = bar end
+    end
+    if #bars > 0 then
+      db.wheelBars = bars
+      buildWheelSlots()
+      if wheelPageButton then wheelPageButton:SetText("W" .. db.wheelPage) end
+      updateWheel()
+    end
+    print_("wheel actions from action bars " .. table.concat(db.wheelBars, ", ") .. " (" .. #wheelSlots .. " slots, "
+      .. WHEEL_PAGES .. " pages). /fcb wheelbars 7 8 9 10 to change.")
+    if wheelNotice then print_(wheelNotice) end
+  elseif cmd == "emulate" then
+    if InCombatLockdown() then return print_("can't change settings in combat.") end
+    for name, button in pairs(EMULATE) do pcall(SetCVar, name, button) end
+    print_("set: " .. emulationText())
   elseif cmd == "keys" then
     toggleKeyLogger()
   elseif cmd == "macros" then
