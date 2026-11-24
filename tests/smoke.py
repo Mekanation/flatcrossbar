@@ -52,6 +52,8 @@ function Stub.CreateMaskTexture(self) return newStub('Mask') end
 function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
+function Stub.SetAlpha(self, v) self.__alpha = v end
+function Stub.GetAlpha(self) return self.__alpha or 1 end
 function Stub.GetWidth() return 100 end
 function Stub.GetHeight() return 50 end
 function Stub.GetEffectiveScale() return 1 end
@@ -147,9 +149,9 @@ note('button1 action = ' .. tostring(G.FlatCrossbarButton1:GetAttribute('action'
 -- controller mode: header buttons show, wheel binds apply
 local slash = SlashCmdList.FLATCROSSBAR
 try('/fcb mode controller', slash, 'mode controller')
-note('wheel header shown in controller mode: ' .. tostring(wbtn:IsShown()))
+note('wheel header (shown and alpha) in controller mode: ' .. tostring((wbtn:IsShown() and wbtn:GetAlpha())))
 try('/fcb mode keyboard', slash, 'mode keyboard')
-note('wheel header shown in keyboard mode: ' .. tostring(wbtn:IsShown()))
+note('wheel header (shown and alpha) in keyboard mode: ' .. tostring((wbtn:IsShown() and wbtn:GetAlpha())))
 try('/fcb wheel (keyboard mode)', slash, 'wheel')
 try('/fcb mode controller', slash, 'mode controller')
 
@@ -183,9 +185,9 @@ try('/fcb wheelpage 3', slash, 'wheelpage 3')
 note('extras: b29=' .. tostring(G.FlatCrossbarButton29:GetAttribute('action')) .. ' b37=' .. tostring(G.FlatCrossbarButton37:GetAttribute('action')) .. ' b45=' .. tostring(G.FlatCrossbarButton45:GetAttribute('action')) .. ' b52 parent=' .. tostring(G.FlatCrossbarButton52.__parent) .. ', pad29=' .. tostring(FlatCrossbarDB.pad[29]) .. ' pad37=' .. tostring(FlatCrossbarDB.pad[37]) .. ' pad45=' .. tostring(FlatCrossbarDB.pad[45]))
 note('groups: ' .. tostring(G.FlatCrossbarGroup1 ~= nil) .. tostring(G.FlatCrossbarGroup4 ~= nil) .. ', button 9 parent = ' .. tostring(G.FlatCrossbarButton9 and G.FlatCrossbarButton9.__parent))
 try('/fcb hidebuttons', slash, 'hidebuttons')
-note('page button shown after hidebuttons: ' .. tostring(G.FlatCrossbarPageButton:IsShown()))
+note('page button shown after hidebuttons: ' .. tostring((G.FlatCrossbarPageButton:IsShown() and G.FlatCrossbarPageButton:GetAlpha())))
 try('/fcb showbuttons', slash, 'showbuttons')
-note('page button shown after showbuttons: ' .. tostring(G.FlatCrossbarPageButton:IsShown()))
+note('page button shown after showbuttons: ' .. tostring((G.FlatCrossbarPageButton:IsShown() and G.FlatCrossbarPageButton:GetAlpha())))
 try('/fcb helper off', slash, 'helper off')
 try('/fcb helper', slash, 'helper')
 try('/fcb lock', slash, 'lock')
@@ -212,6 +214,8 @@ try('/fcb yield remove MyBagFrame', slash, 'yield remove MyBagFrame')
 try('/fcb bindto jump', slash, 'bindto jump')
 try('capture PADRSHOULDER for jump', cap.__scripts.OnGamePadButtonDown, cap, 'PADRSHOULDER')
 note('jump bind now: ' .. tostring(FlatCrossbarDB.pad.jump) .. ', default others: ' .. tostring(FlatCrossbarDB.pad.dynamic) .. ' ' .. tostring(FlatCrossbarDB.pad.inspect) .. ' ' .. tostring(FlatCrossbarDB.pad.back))
+try('global wheel page next', FlatCrossbar_WheelPage, 1)
+try('global wheel page prev', FlatCrossbar_WheelPage, -1)
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

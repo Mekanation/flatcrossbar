@@ -168,9 +168,9 @@
 		CLICK FlatCrossbarWheelButton:LeftButton
 	</Binding>
 	<Binding name="FLATCROSSBARWHEELPAGENEXT" category="ADDONS">
-		CLICK FlatCrossbarWheelPageButton:LeftButton
+		FlatCrossbar_WheelPage(1)
 	</Binding>
 	<Binding name="FLATCROSSBARWHEELPAGEPREV" category="ADDONS">
-		CLICK FlatCrossbarWheelPageButton:RightButton
+		FlatCrossbar_WheelPage(-1)
 	</Binding>
 </Bindings>

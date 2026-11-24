@@ -619,12 +619,18 @@ layoutToolbar = function()
   local prev, width = nil, 0
   for _, entry in ipairs(order) do
     local b, show = entry[1], entry[2]
-    b:SetShown(show)
+    -- A binding that clicks a button only finds it while it is shown, so the
+    -- buttons are kept shown and made invisible and unclickable instead.
+    b:Show()
+    b:SetAlpha(show and 1 or 0)
+    b:EnableMouse(show and true or false)
+    b:ClearAllPoints()
     if show then
-      b:ClearAllPoints()
       if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("LEFT", container, "LEFT") end
       width = width + b:GetWidth() + (prev and 4 or 0)
       prev = b
+    else
+      b:SetPoint("LEFT", container, "LEFT")
     end
   end
   container:SetSize(math.max(width, 70), HEADER_HEIGHT)
@@ -1055,6 +1061,14 @@ local function createFrames()
       pageButton:SetAttribute("slot-" .. page .. "-" .. i, storageSlot(page, PAGE_UNIT_SLOT_IDS[i]))
     end
   end
+end
+
+-- Bound in the Key Bindings screen: plain Lua, so it works whatever is shown.
+function FlatCrossbar_WheelPage(delta)
+  if not db or not container or InCombatLockdown() then return end
+  local mode = effectiveMode()
+  if mode ~= "controller" and mode ~= "both" then return end
+  setWheelPage(db.wheelPage + delta)
 end
 
 -- Blizzard crossbar -----------------------------------------------------------
