@@ -28,7 +28,7 @@ local ADDON = ...
 local MAIN_BUTTONS = 28 -- the four crossbar bars, paged
 local NUM_BUTTONS = 60 -- plus four bars of 8: LB, RB and the double-press LT and RT
 local BUTTON_SIZE = 36
-local SPACING = 3
+local SPACING = 0
 local HEADER_HEIGHT = 18
 local WHEEL_SLICES = 8
 local WHEEL_PAGES = 6 -- set from the chosen action bars (buildWheelSlots)
@@ -59,7 +59,7 @@ local DEFAULTS = {
   wheelScale = 1,
   locked = false,
   hideBlizzard = true,
-  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 250 },
+  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 135 },
 }
 
 BINDING_HEADER_FLATCROSSBAR = "FlatCrossbar"
@@ -124,13 +124,9 @@ local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LB", "RB", "LT x2", "RT x2" 
 -- The other four bars are not modifiers by themselves, so Steam Input sends: Alt for
 -- LB, Alt+Ctrl for RB, Alt+Shift for a double press of LT and Alt+Ctrl+Shift for RT.
 local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-", "ALT-SHIFT-", "ALT-CTRL-SHIFT-" }
-local FRAME_COLOR = { 0.42, 0.58, 0.85 }
+local FRAME_COLOR = { 0.85, 0.85, 0.9 }
 local GROUP_COLOR = {}
 for g = 1, #GROUP_LABEL do GROUP_COLOR[g] = FRAME_COLOR end
-local GROUP_HINT = {
-  "no trigger", "hold LT", "hold RT", "hold LT + RT", "hold LB", "hold RB",
-  "double-press LT", "double-press RT",
-}
 local function colorCode(c)
   return string.format("|cff%02x%02x%02x", math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5), math.floor(c[3] * 255 + 0.5))
 end
@@ -237,7 +233,8 @@ local GLYPH_TEXT = {
   PAD1 = "A", PAD2 = "B", PAD3 = "X", PAD4 = "Y",
 }
 local GLYPH_SIZE = 22
-local GLYPH_ALPHA = 0.5
+local GLYPH_ALPHA = 0.85
+local ICON_DIM = 0.72 -- the action icons are a little duller than the glyphs on top
 
 -- The game's own icon for a controller button (arrows for the D-pad, the face
 -- buttons for the controller in use), when this build has them.
@@ -411,7 +408,7 @@ local function updateButton(btn, actionOverride)
     if rangeState[action] == false then
       btn.icon:SetVertexColor(0.8, 0.1, 0.1)
     elseif usable then
-      btn.icon:SetVertexColor(1, 1, 1)
+      btn.icon:SetVertexColor(ICON_DIM, ICON_DIM, ICON_DIM)
     elseif lacking then
       btn.icon:SetVertexColor(0.3, 0.3, 1)
     else
@@ -493,8 +490,7 @@ local function createButton(i)
   local bg = btn:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
   bg:SetColorTexture(0.04, 0.04, 0.06, 0.85)
-  local edge = GROUP_COLOR[BUTTON_GROUP[i]]
-  addBorder(btn, edge[1] * 0.7, edge[2] * 0.7, edge[3] * 0.7, 1)
+  addBorder(btn, 0, 0, 0, 0.9)
 
   btn.icon = btn:CreateTexture(nil, "ARTWORK")
   btn.icon:SetPoint("TOPLEFT", 1, -1)
@@ -588,26 +584,24 @@ local function createButton(i)
 end
 
 local GROUP_COLS = 8 -- all eight buttons of a bar in one row
-local GROUP_ROWS = 1
 local GROUP_GAP = 10
-local PANEL_PAD = 4
-local GROUP_FRAME_W = GROUP_COLS * (BUTTON_SIZE + SPACING) - SPACING + 2 * PANEL_PAD
-local GROUP_FRAME_H = GROUP_ROWS * (BUTTON_SIZE + SPACING) - SPACING + 2 * PANEL_PAD
+local MID_GAP = 56 -- the label between the D-pad buttons and the face buttons
+local GROUP_FRAME_W = GROUP_COLS * (BUTTON_SIZE + SPACING) - SPACING + MID_GAP
+local GROUP_FRAME_H = BUTTON_SIZE
 local HANDLE_HEIGHT = 12
 
--- A scale that lets the six bars sit in one row on this screen.
+-- A scale that lets a row of four bars sit on this screen.
 local function fitScale()
   local total = 4 * GROUP_FRAME_W + 3 * GROUP_GAP
   local avail = (UIParent:GetWidth() or total) - 40
   return math.max(0.5, math.min(1, math.floor(avail / total * 20) / 20))
 end
 
--- The four crossbar bars in a row along the bottom, with room under them for their
--- labels, and the other four in a second row above.
+-- The four crossbar bars in a row along the bottom and the other four above.
 local function groupDefaultPoint(g)
   local step = GROUP_FRAME_W + GROUP_GAP
   local column = (g - 1) % 4 + 1
-  return { "BOTTOM", "UIParent", "BOTTOM", (column - 2.5) * step, g <= 4 and 64 or 168 }
+  return { "BOTTOM", "UIParent", "BOTTOM", (column - 2.5) * step, g <= 4 and 40 or 84 }
 end
 
 local function setPoint(frame, p)
@@ -627,31 +621,32 @@ local function restorePosition()
   end
 end
 
+-- Where a bar's slot sits in its row: the D-pad four, the label's gap, the face four.
+local function slotX(slot)
+  local step = BUTTON_SIZE + SPACING
+  return (slot - 1) * step + (slot > 4 and MID_GAP or 0)
+end
+
 local function layout()
   if InCombatLockdown() then
     pendingLayout = true
     return
   end
   pendingLayout = false
-  local step = BUTTON_SIZE + SPACING
   for g, gf in ipairs(groupFrames) do
     gf:SetSize(GROUP_FRAME_W, GROUP_FRAME_H)
     gf:SetScale(db.scale)
     for _, text in ipairs(sideTexts[g]) do text:SetShown(db.helper and true or false) end
   end
   for i, btn in ipairs(buttons) do
-    local s = BUTTON_SLOT[i]
     btn:ClearAllPoints()
-    btn:SetPoint("TOPLEFT", groupFrames[BUTTON_GROUP[i]], "TOPLEFT",
-      PANEL_PAD + ((s - 1) % GROUP_COLS) * step, -(PANEL_PAD + math.floor((s - 1) / GROUP_COLS) * step))
+    btn:SetPoint("TOPLEFT", groupFrames[BUTTON_GROUP[i]], "TOPLEFT", slotX(BUTTON_SLOT[i]), 0)
   end
   -- Slots 5-8 of the base bar are the face buttons, kept by the game for jump,
   -- interact and so on, so they are shown empty.
   for k, slot in ipairs(reservedSlots) do
-    local s = 4 + k
     slot:ClearAllPoints()
-    slot:SetPoint("TOPLEFT", groupFrames[1], "TOPLEFT",
-      PANEL_PAD + ((s - 1) % GROUP_COLS) * step, -(PANEL_PAD + math.floor((s - 1) / GROUP_COLS) * step))
+    slot:SetPoint("TOPLEFT", groupFrames[1], "TOPLEFT", slotX(4 + k), 0)
   end
   container:SetScale(db.scale)
   layoutToolbar()
@@ -667,7 +662,7 @@ local function makeHandle(frame, text, onMoved, color)
   h:RegisterForDrag("LeftButton")
   local bg = h:CreateTexture(nil, "BACKGROUND")
   bg:SetAllPoints()
-  color = color or { 0.1, 0.35, 0.7 }
+  color = color or { 0.5, 0.5, 0.58 }
   bg:SetColorTexture(color[1] * 0.8, color[2] * 0.8, color[3] * 0.8, 0.9)
   local label = h:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   label:SetPoint("CENTER")
@@ -683,10 +678,15 @@ local function makeHandle(frame, text, onMoved, color)
   return h
 end
 
+-- Unlocked: the label in the middle of each bar can be dragged (it lights up) and
+-- so can the toolbar's strip. Locked: neither can.
 local function applyLock()
   local show = not db.locked
   toolbarHandle:SetShown(show)
-  for _, h in ipairs(groupHandles) do h:SetShown(show) end
+  for _, mid in ipairs(groupHandles) do
+    mid.bg:SetShown(show)
+    mid:EnableMouse(show)
+  end
 end
 
 local function setBarShown(show)
@@ -1104,31 +1104,43 @@ local function createFrames()
   bindCapture:Hide()
 
   for g, name in ipairs(GROUP_LABEL) do
-    local c = GROUP_COLOR[g]
     local gf = CreateFrame("Frame", "FlatCrossbarGroup" .. g, UIParent)
     gf:SetMovable(true)
     gf:SetClampedToScreen(true)
     gf:SetFrameStrata("MEDIUM")
     gf:SetSize(GROUP_FRAME_W, GROUP_FRAME_H)
-    local bg = gf:CreateTexture(nil, "BACKGROUND")
-    bg:SetAllPoints()
-    bg:SetColorTexture(0, 0, 0, 0.5)
-    addBorder(gf, c[1] * 0.6, c[2] * 0.6, c[3] * 0.6, 0.9)
-    local accent = gf:CreateTexture(nil, "BORDER")
-    accent:SetPoint("TOPLEFT")
-    accent:SetPoint("TOPRIGHT")
-    accent:SetHeight(2)
-    accent:SetColorTexture(c[1], c[2], c[3], 1)
     groupFrames[g] = gf
-    groupHandles[g] = makeHandle(gf, name, function() db.groupPoints[g] = savePoint(gf) end, c)
-    -- What to hold, under the bar.
-    local title = gf:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOP", gf, "BOTTOM", 0, -3)
-    title:SetText(colorCode(c) .. name .. "|r")
-    local hint = gf:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-    hint:SetPoint("TOP", title, "BOTTOM", 0, -1)
-    hint:SetText("|cff9a9a9a" .. GROUP_HINT[g] .. "|r")
-    sideTexts[g] = { title, hint }
+
+    -- The label between the D-pad buttons and the face buttons says what to hold,
+    -- and is what you drag to move the bar (while unlocked).
+    local mid = CreateFrame("Frame", nil, gf)
+    mid:SetSize(MID_GAP, BUTTON_SIZE)
+    mid:SetPoint("TOPLEFT", gf, "TOPLEFT", slotX(4) + BUTTON_SIZE + SPACING, 0)
+    mid:RegisterForDrag("LeftButton")
+    mid.bg = mid:CreateTexture(nil, "BACKGROUND")
+    mid.bg:SetAllPoints()
+    mid.bg:SetColorTexture(1, 1, 1, 0.12)
+    local title = mid:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    title:SetPoint("CENTER")
+    title:SetText(colorCode(GROUP_COLOR[g]) .. name .. "|r")
+    mid:SetScript("OnDragStart", function()
+      if db.locked or InCombatLockdown() then return end
+      gf:StartMoving()
+    end)
+    mid:SetScript("OnDragStop", function()
+      gf:StopMovingOrSizing()
+      db.groupPoints[g] = savePoint(gf)
+    end)
+    mid:SetScript("OnEnter", function(self)
+      if db.locked then return end
+      GameTooltip:SetOwner(self, "ANCHOR_TOP")
+      GameTooltip:SetText(name)
+      GameTooltip:AddLine("Drag to move this bar. /fcb lock to stop.", 1, 1, 1)
+      GameTooltip:Show()
+    end)
+    mid:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    groupHandles[g] = mid
+    sideTexts[g] = { title }
   end
   for k = 1, 4 do
     local slot = CreateFrame("Frame", nil, groupFrames[1])
@@ -1136,7 +1148,7 @@ local function createFrames()
     local bg = slot:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
     bg:SetColorTexture(0, 0, 0, 0.25)
-    addBorder(slot, 0.2, 0.2, 0.2, 1)
+    addBorder(slot, 0, 0, 0, 0.9)
     slot.Label = slot:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
     slot.Label:SetPoint("BOTTOM", 0, 2)
     slot.Label:SetText(RESERVED_LABEL[k])
@@ -1395,11 +1407,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     FlatCrossbarDB = FlatCrossbarDB or {}
     db = FlatCrossbarDB
     copyDefaults(db, DEFAULTS)
-    if (db.layoutVersion or 0) < 3 then
+    if (db.layoutVersion or 0) < 4 then
       -- The bars were rearranged: the old positions would overlap.
-      db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 250 }
+      db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 135 }
       db.groupPoints = {}
-      db.layoutVersion = 3
+      db.layoutVersion = 4
     end
     if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
     db.padSeeded = true
@@ -1496,7 +1508,7 @@ local HELP = {
   "/fcb clear [n|all] - clear the keybinds of button n (or all)",
   "/fcb wheel - preview the wheel   /fcb wheelpage N   /fcb wheelscale N",
   "/fcb bindto wheel|wheelnext|wheelprev|dynamic|inspect|back|jump - bind that, then press a key",
-  "/fcb helper [on|off] - the combo text beside each bar (LT +, RT + ...)",
+  "/fcb helper [on|off] - the label (LT, RT ...) between each bar's D-pad and face buttons",
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
@@ -1506,7 +1518,7 @@ local HELP = {
   "/fcb fade [on|off|0-1] - dim the other bars while one is held (LT, RT, LB, RB)",
   "/fcb macros [create|on|off] - the FCB Tab Enemy / FCB Tab Friend macros (made on login if missing)",
   "/fcb scale N|auto - bar scale (auto fits the screen)",
-  "/fcb unlock | lock - show / hide the drag handles (hold Shift to drag actions off a locked bar)",
+  "/fcb unlock | lock - drag a bar by the label between its D-pad and face buttons (hold Shift to drag actions off a locked bar)",
   "/fcb blizzard on|off - hide or show Blizzard's own crossbar",
   "/fcb show | hide - the bars   /fcb resetpos - bars back to the default spots   /fcb status",
 }
@@ -1664,7 +1676,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
   elseif cmd == "lock" or cmd == "unlock" then
     db.locked = (cmd == "lock")
     applyLock()
-    print_(db.locked and "locked: drag handles hidden" or "unlocked: drag a blue handle to move that bar")
+    print_(db.locked and "locked" or "unlocked: drag the label in the middle of a bar to move it")
   elseif cmd == "hidebuttons" or cmd == "showbuttons" then
     if InCombatLockdown() then return print_("can't do that in combat.") end
     db.hideButtons = (cmd == "hidebuttons")
@@ -1677,7 +1689,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
     print_("helper text " .. (db.helper and "on" or "off"))
   elseif cmd == "resetpos" then
     if InCombatLockdown() then return print_("can't do that in combat.") end
-    db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 250 }
+    db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 135 }
     db.groupPoints = {}
     restorePosition()
   elseif cmd == "blizzard" then

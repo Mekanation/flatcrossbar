@@ -53,14 +53,14 @@ addon's own logic, not game behaviour.
 
 ## Layout
 
-Each of the crossbar's bars is a single row of 8 buttons in its own panel with the same blue edge: Base, LT, RT and LT+RT, plus LB, RB, LT x2 and RT x2 in a second row above. The scale is set on first run so a row fits the screen (`/fcb scale auto` redoes it). Under each bar a label says what to hold ("LT", "hold LT"), so the buttons only show which controller button they are: arrows for the D-pad and the A/B/X/Y icons, centred in each button at half opacity. The first four buttons of a bar are the D-pad and the last four are the face buttons. A keyboard bind still shows as small text in the corner. The base bar's face buttons are the game's own (see below). A small toolbar above holds the keyboard/controller toggle, wheel and bind buttons.
+Each of the crossbar's bars is a single row of 8 buttons with no frame around it and no gaps between the buttons: the four D-pad buttons, a label saying what to hold ("LT", "RT", "LT x2" ...), then the four face buttons. The Base bar's face buttons are the game's own (see below). The label is also what you drag to move a bar. Buttons show only which controller button they are: arrows for the D-pad and the A/B/X/Y icons, centred in each button, with the action icons a little duller underneath so they stand out. A keyboard bind still shows as small text in the corner. The first row holds the four crossbar bars and the second the other four. The scale is set on first run so a row fits the screen (`/fcb scale auto` redoes it). A small toolbar above holds the keyboard/controller toggle, wheel and bind buttons.
 
 While you hold LT, RT, LB or RB (as Shift, Ctrl or Alt) in controller mode, the other bars fade so the active one stands out. `/fcb fade off` turns that off; `/fcb fade 0.5` sets how dim they get.
 
 On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for Base, with Shift for LT, Ctrl for RT and both for LT+RT. This follows the key-modifier convention ClassicConsoleGamepadUI uses for the triggers and has not been checked against the real client.
 
-- `/fcb unlock` shows a coloured drag handle above each bar and the toolbar; drag them separately. `/fcb lock` hides the handles.
-- `/fcb helper [on|off]` shows or hides the labels under each bar.
+- `/fcb unlock` lights up the label in the middle of each bar so you can drag it, and shows the toolbar's strip. `/fcb lock` turns both off.
+- `/fcb helper [on|off]` shows or hides the labels (the drag area stays).
 - `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle and Bind buttons.
 - `/fcb resetpos` puts the bars and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.
