@@ -130,3 +130,7 @@ The wheel does not use the crossbar's slots. It reads the normal keyboard and mo
 The slot numbers come from the game's own action bar pages (bar 6 is slots 145-156, 7 is 157-168, 8 is 169-180).
 
 While the wheel is open the pad's camera speeds (`GamePadCameraYawSpeed` and `GamePadCameraPitchSpeed`) are set to 0 so aiming with the right stick does not turn the camera; your values are kept in the saved variables and put back when the wheel closes (and at login if the game ended badly in between). The movement stick keeps walking. Not checked in the real client.
+
+## What is shared between characters
+
+How the bars look and behave is the same for every character: where each bar sits, the scale, lock, snapping, fade, the labels, the hidden toolbar buttons, whether the bars hide in keyboard mode, and which action bars the wheel uses. It is saved account-wide in `FlatCrossbarAccountDB`. Keybinds (`/fcb bind`), the keyboard/controller mode and the wheel's current page stay per character in `FlatCrossbarDB`. The first character you log in with after this change hands its layout to the account; the others pick it up. To sync a layout to another machine, copy `WTF/Account/<ACCOUNT>/SavedVariables/FlatCrossbar.lua`.

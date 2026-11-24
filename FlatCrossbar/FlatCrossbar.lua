@@ -1492,6 +1492,39 @@ local function toggleKeyLogger()
   end
 end
 
+-- Saved settings ---------------------------------------------------------------
+
+-- How the bars look and behave is the same for every character (FlatCrossbarAccountDB);
+-- keybinds, the wheel's page and the like stay per character (FlatCrossbarDB). The rest
+-- of the addon reads and writes db as one table; this sends each key to its own home.
+local SHARED = {
+  point = true, groupPoints = true, scale = true, autoScale = true, layoutVersion = true,
+  locked = true, helper = true, hideButtons = true, snap = true, fade = true, fadeAlpha = true,
+  hideInKeyboard = true, hideBlizzard = true, wheelScale = true, wheelBars = true, wheelBarsVersion = true,
+}
+
+local function makeDB(character, account)
+  -- The first character to load after this change hands its own layout to the account.
+  if not account.layoutShared then
+    for key in pairs(SHARED) do
+      if character[key] ~= nil then
+        account[key] = character[key]
+        character[key] = nil
+      end
+    end
+    account.layoutShared = true
+  end
+  return setmetatable({}, {
+    __index = function(_, key)
+      if SHARED[key] then return account[key] end
+      return character[key]
+    end,
+    __newindex = function(_, key, value)
+      if SHARED[key] then account[key] = value else character[key] = value end
+    end,
+  })
+end
+
 local function onInterfaceTransition()
   if db and db.mode == "auto" then applyBindings() end
   if db then applyBlizzardVisibility() end
@@ -1579,7 +1612,8 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
   if event == "ADDON_LOADED" then
     if arg1 ~= ADDON then return end
     FlatCrossbarDB = FlatCrossbarDB or {}
-    db = FlatCrossbarDB
+    FlatCrossbarAccountDB = FlatCrossbarAccountDB or {}
+    db = makeDB(FlatCrossbarDB, FlatCrossbarAccountDB)
     copyDefaults(db, DEFAULTS)
     if (db.layoutVersion or 0) < 4 then
       -- The bars were rearranged: the old positions would overlap.

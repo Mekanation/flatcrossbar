@@ -147,12 +147,14 @@ local function try(label, f, ...)
   note((ok and 'ok    ' or 'ERROR ') .. label .. (ok and '' or (': ' .. tostring(e))))
 end
 
+FlatCrossbarDB = { scale = 0.8, autoScale = false, layoutVersion = 4 } -- a save from before the layout was shared
 fire('ADDON_LOADED', addonName)
 fire('PLAYER_ENTERING_WORLD')
 
 if not G.FlatCrossbarButton1 then return 'ERROR bar did not build:' .. string.char(10) .. table.concat(log, string.char(10)) end
 local wheel, wbtn, wpage = G.FlatCrossbarWheel, G.FlatCrossbarWheelButton, G.FlatCrossbarWheelPageButton
 note('wheel frame: ' .. tostring(wheel ~= nil) .. ', wheel button: ' .. tostring(wbtn ~= nil))
+note('layout is shared: account scale=' .. tostring(FlatCrossbarAccountDB.scale) .. ', character scale=' .. tostring(FlatCrossbarDB.scale) .. ', keybinds stay per character: pad=' .. tostring(next(FlatCrossbarDB.pad) ~= nil))
 note('button1 action = ' .. tostring(G.FlatCrossbarButton1:GetAttribute('action')) ..
      ', button5 = ' .. tostring(G.FlatCrossbarButton5:GetAttribute('action')) ..
      ', button28 = ' .. tostring(G.FlatCrossbarButton28:GetAttribute('action')))
@@ -273,13 +275,13 @@ local driver = G.FlatCrossbarDragDriver
 try('drag start', mid.__scripts.OnDragStart, mid)
 try('drag update (snap on)', driver.__scripts.OnUpdate, driver, 0.02)
 try('drag stop', mid.__scripts.OnDragStop, mid)
-note('saved bar position: ' .. tostring(FlatCrossbarDB.groupPoints[2] and FlatCrossbarDB.groupPoints[2][1]))
+note('saved bar position: ' .. tostring(FlatCrossbarAccountDB.groupPoints[2] and FlatCrossbarAccountDB.groupPoints[2][1]))
 try('/fcb snap off', slash, 'snap off')
 try('drag start (snap off)', mid.__scripts.OnDragStart, mid)
 try('drag update (snap off)', driver.__scripts.OnUpdate, driver, 0.02)
 try('drag stop (snap off)', mid.__scripts.OnDragStop, mid)
 try('/fcb snap on', slash, 'snap')
-note('snap now: ' .. tostring(FlatCrossbarDB.snap))
+note('snap now: ' .. tostring(FlatCrossbarAccountDB.snap))
 -- auto follows the game's gamepad mode, both ways
 try('/fcb mode auto', slash, 'mode auto')
 STYLE = 2
