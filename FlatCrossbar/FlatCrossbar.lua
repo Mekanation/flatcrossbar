@@ -51,7 +51,7 @@ local DEFAULTS = {
   fade = true,
   snap = true,
   fadeAlpha = 0.3,
-  wheelBars = { 7, 8, 9, 10 },
+  wheelBars = { 6, 7, 8 },
   autoScale = true,
   groupPoints = {},
   scale = 1,
@@ -945,11 +945,18 @@ end
 
 -- The right stick, as the game reports it. Which entry is the right stick isn't
 -- documented, so this takes the second one (the usual order is left, right).
+local cameraStick
 local function readStick()
   if not (C_GamePad and C_GamePad.GetActiveDeviceID and C_GamePad.GetDeviceMappedState) then return end
   local id = C_GamePad.GetActiveDeviceID()
   local state = id and C_GamePad.GetDeviceMappedState(id)
-  local stick = state and state.sticks and state.sticks[2]
+  if state and not cameraStick then
+    for index = 1, tonumber(state.stickCount) or 0 do
+      local ok, name = pcall(C_GamePad.StickIndexToConfigName, index - 1)
+      if ok and name == "Camera" then cameraStick = index end
+    end
+  end
+  local stick = state and state.sticks and state.sticks[cameraStick or 2]
   if stick then return stick.x, stick.y, stick.len end
 end
 
@@ -1417,29 +1424,26 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 -- Fading the other bars --------------------------------------------------------
 
--- The triggers arrive as the buttons PADLTRIGGER and PADRTRIGGER; a frame that passes
--- keys through sees them go down and up without taking them from the game.
-local triggerDown = { lt = false, rt = false }
-local triggerWatch = CreateFrame("Frame", "FlatCrossbarTriggerWatch", UIParent)
-triggerWatch:SetSize(1, 1)
-triggerWatch:SetPoint("CENTER")
-triggerWatch:EnableKeyboard(true)
-if triggerWatch.EnableGamePadButton then triggerWatch:EnableGamePadButton(true) end
-triggerWatch:SetPropagateKeyboardInput(true)
-local function watchTrigger(down)
-  return function(_, key)
-    if key == "PADLTRIGGER" then
-      triggerDown.lt = down
-    elseif key == "PADRTRIGGER" then
-      triggerDown.rt = down
-    end
-  end
+-- The game's own crossbar knows which of its four bars the triggers have picked (top
+-- is Base, then left LT, right RT, bottom LT+RT), so the focus follows that: it is the
+-- bar whose buttons really fire. Nil when the game has none or an override bar (stance,
+-- possess) is up.
+local function gameActiveBar()
+  local frame = _G.GamepadMainActionBarFrame
+  local unit = frame and type(frame.PageUnit) == "table" and frame.PageUnit or nil
+  local bars = unit and type(unit.actionBars) == "table" and unit.actionBars or nil
+  if not (bars and unit.GetActiveBar) then return nil end
+  local ok, active = pcall(unit.GetActiveBar, unit)
+  if not ok or active == nil then return nil end
+  if active == bars.topBar then return 1 end
+  if active == bars.leftBar then return 2 end
+  if active == bars.rightBar then return 3 end
+  if active == bars.bottomBar then return 4 end
+  return nil
 end
-triggerWatch:SetScript("OnGamePadButtonDown", watchTrigger(true))
-triggerWatch:SetScript("OnGamePadButtonUp", watchTrigger(false))
 
--- Which bar is in use: 1 none, 2 LT, 3 RT, 4 both triggers, then the Alt bars Steam
--- Input sends: 5 LB (Alt), 6 RB (Alt+Ctrl), 7 LT x2 (Alt+Shift), 8 RT x2 (Alt+Ctrl+Shift).
+-- Which bar is in use: 1 to 4 from the game, then the Alt bars Steam Input sends:
+-- 5 LB (Alt), 6 RB (Alt+Ctrl), 7 LT x2 (Alt+Shift), 8 RT x2 (Alt+Ctrl+Shift).
 local function activeGroup()
   if IsAltKeyDown() then
     local shift, ctrl = IsShiftKeyDown(), IsControlKeyDown()
@@ -1448,10 +1452,7 @@ local function activeGroup()
     if shift then return 7 end -- LT x2
     return 5 -- LB
   end
-  if triggerDown.lt and triggerDown.rt then return 4 end
-  if triggerDown.lt then return 2 end
-  if triggerDown.rt then return 3 end
-  return 1
+  return gameActiveBar() or 1
 end
 
 local fadeActive, fadeElapsed = nil, 0 -- nil: nothing fades
@@ -1508,6 +1509,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
       -- Saves from before the wheel had a default: L3, unless it is already bound.
       if db.pad.wheel == nil then db.pad.wheel = "PADLSTICK" end
       db.wheelSeeded = true
+    end
+    if (db.wheelBarsVersion or 0) < 2 then
+      -- The wheel now defaults to action bars 6, 7 and 8 (the ones the game has).
+      db.wheelBars = { 6, 7, 8 }
+      db.wheelBarsVersion = 2
     end
     if not db.nativeScheme then
       -- The crossbar bars are pressed by the game's own crossbar now: drop the old
@@ -1602,7 +1608,7 @@ local HELP = {
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
-  "/fcb wheelbars 7 8 9 10 - the keyboard action bars the wheel uses (not the crossbar's)",
+  "/fcb wheelbars 6 7 8 - the keyboard action bars the wheel uses (not the crossbar's)",
   "/fcb snap [on|off] - snap bars to each other while you drag them (hold Ctrl to skip once)",
   "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
   "/fcb fade [on|off|0-1] - the bar in use has the focus (Base when no trigger is held) and the others dim; only while locked",
@@ -1623,6 +1629,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
 
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
+    print_("the game says bar " .. tostring(gameActiveBar()) .. " is in use (1 Base, 2 LT, 3 RT, 4 LT+RT; nil = it can't tell)")
     print_("wheel: action bars " .. table.concat(db.wheelBars, ", ") .. ", " .. #wheelSlots .. " slots"
       .. (wheelSlots[1] and (" (" .. wheelSlots[1] .. "-" .. wheelSlots[#wheelSlots] .. ")") or "")
       .. ", crossbar storage starts at " .. tostring(C_GamepadUI and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex
@@ -1731,7 +1738,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
       updateWheel()
     end
     print_("wheel actions from action bars " .. table.concat(db.wheelBars, ", ") .. " (" .. #wheelSlots .. " slots, "
-      .. WHEEL_PAGES .. " pages). /fcb wheelbars 7 8 9 10 to change.")
+      .. WHEEL_PAGES .. " pages). /fcb wheelbars 6 7 8 to change.")
     if wheelNotice then print_(wheelNotice) end
   elseif cmd == "snap" then
     if arg == "on" then db.snap = true elseif arg == "off" then db.snap = false else db.snap = not db.snap end

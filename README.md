@@ -57,7 +57,7 @@ Each of the crossbar's bars is a single row of 8 buttons with no frame around it
 
 In controller mode the bar in use has the focus: the Base bar when no trigger is held, or the LT, RT, LT+RT, LB, RB, LT x2 or RT x2 bar while you hold that combination. The other bars fade out. It only runs while the bars are locked (`/fcb lock`); while unlocked every bar stays fully visible so you can arrange them. `/fcb fade off` turns it off; `/fcb fade 0.5` sets how dim the other bars get.
 
-The four crossbar bars (Base, LT, RT, LT+RT) are pressed by the game's own crossbar. It reads LT and RT itself (they arrive as `PADLTRIGGER` and `PADRTRIGGER`), so the D-pad and face buttons already do the right thing for each bar, in combat too, and this addon keeps that crossbar hidden underneath. The bars here show the same actions, can be clicked and dragged to, and fade the bars you are not holding. They get no controller bind of their own unless you set one with `/fcb bind`. The other four bars (LB, RB, LT x2, RT x2) are bound under Alt, which Steam Input sends, and the wheel is on L3.
+The four crossbar bars (Base, LT, RT, LT+RT) are pressed by the game's own crossbar. It reads LT and RT itself (they arrive as `PADLTRIGGER` and `PADRTRIGGER`), so the D-pad and face buttons already do the right thing for each bar, in combat too, and this addon keeps that crossbar hidden underneath. The bars here show the same actions, can be clicked and dragged to, and fade the bars you are not holding. Which bar has the focus is whatever the game says is in use (`/fcb status` prints it), so it is also the bar whose buttons really fire. They get no controller bind of their own unless you set one with `/fcb bind`. The other four bars (LB, RB, LT x2, RT x2) are bound under Alt, which Steam Input sends, and the wheel is on L3.
 
 - `/fcb unlock` lights up the label in the middle of each bar so you can drag it, and shows the toolbar's strip. `/fcb lock` turns both off.
 - While you drag, a bar snaps to the others and the toolbar: flush against a side, or lined up with an edge, once it is within a few pixels. Hold Ctrl while dragging to skip it once, or turn it off with `/fcb snap off` (`/fcb snap on` brings it back).
@@ -121,6 +121,6 @@ Not checked in the real client: that L3 arrives as `PADLSTICK`, and that the D-p
 
 ## What the wheel holds
 
-The wheel does not use the crossbar's slots. It reads the normal keyboard and mouse action bars, **7 to 10** by default (48 slots, 6 pages of 8). Fill those bars the usual way (turn them on in the action bar settings), or drop an action straight onto a wheel slice. `/fcb wheelbars 6 7 8` picks other bars. Any slot that would fall in the crossbar's own storage is skipped, with a warning.
+The wheel does not use the crossbar's slots. It reads the normal keyboard and mouse action bars, **6 to 8** by default (36 slots, 5 pages of 8, the last one half full). Fill those bars the usual way (turn them on in the action bar settings), or drop an action straight onto a wheel slice. `/fcb wheelbars 7 8` picks other bars. Any slot that would fall in the crossbar's own storage is skipped, with a warning.
 
-Not checked in the real client: the action slot numbers for bars 9 and 10.
+The slot numbers come from the game's own action bar pages (bar 6 is slots 145-156, 7 is 157-168, 8 is 169-180).

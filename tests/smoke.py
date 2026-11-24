@@ -232,13 +232,13 @@ try('global wheel page next', FlatCrossbar_WheelPage, 1)
 try('global wheel page prev', FlatCrossbar_WheelPage, -1)
 -- the bars fade while LT is held
 try('/fcb lock (for the fade)', slash, 'lock')
-local watch = G.FlatCrossbarTriggerWatch
+GamepadMainActionBarFrame.PageUnit = { actionBars = { topBar = 'top', leftBar = 'left', rightBar = 'right', bottomBar = 'bottom' }, active = 'top', GetActiveBar = function(self) return self.active end }
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with nothing held (locked): base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
-watch.__scripts.OnGamePadButtonDown(watch, 'PADLTRIGGER')
+GamepadMainActionBarFrame.PageUnit.active = 'left'
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with LT held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()) .. ' RT=' .. string.format('%.2f', G.FlatCrossbarGroup3:GetAlpha()))
-watch.__scripts.OnGamePadButtonUp(watch, 'PADLTRIGGER')
+GamepadMainActionBarFrame.PageUnit.active = 'top'
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with nothing held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
 try('/fcb unlock (after the fade)', slash, 'unlock')
