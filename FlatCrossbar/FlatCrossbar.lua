@@ -1216,10 +1216,90 @@ local function setWheelSelection(slice)
   updateWheel()
 end
 
+-- Taking the camera stick while the wheel is open ----------------------------------
+
+-- Zeroing the camera speeds did not stop the camera, so the wheel takes the stick away
+-- from the game instead. Each frame the game fires the raw sticks (Left, Right, Gyro)
+-- and then their virtual twins (Movement, Camera, Look), Movement before Camera. A frame
+-- that passes events on (the listener) hears all of them; a frame above it that does not
+-- (the blocker), shown just before the virtual Camera event, takes that one from the
+-- game, so the camera stays still and the character can still walk. If the left stick
+-- fired this frame the blocker waits until Movement has gone past.
+local stickListener, stickBlocker
+local stickArmed, leftSeen = false, false
+local stickEvent = { x = 0, y = 0, len = 0, t = -10 }
+local stickNames = {}
+
+local function createStickFrames()
+  stickListener = CreateFrame("Frame", "FlatCrossbarStickListener", UIParent)
+  stickListener:SetSize(1, 1)
+  stickListener:SetPoint("CENTER")
+  stickListener:SetFrameStrata("BACKGROUND")
+  stickBlocker = CreateFrame("Frame", "FlatCrossbarStickBlocker", UIParent)
+  stickBlocker:SetSize(1, 1)
+  stickBlocker:SetPoint("CENTER")
+  stickBlocker:SetFrameStrata("TOOLTIP")
+  -- Only possible out of combat, which is where the frames are made.
+  if not InCombatLockdown() then
+    pcall(stickListener.SetPropagateKeyboardInput, stickListener, true)
+    pcall(stickBlocker.SetPropagateKeyboardInput, stickBlocker, false)
+  end
+
+  stickListener:SetScript("OnGamePadStick", function(_, stick, x, y, len)
+    stickNames[stick] = (stickNames[stick] or 0) + 1
+    if stick == "Left" then
+      leftSeen = true
+    elseif stick == "Right" then
+      x, y = x or 0, y or 0
+      stickEvent.x, stickEvent.y = x, y
+      stickEvent.len = len or math.sqrt(x * x + y * y)
+      stickEvent.t = GetTime()
+      if stickEvent.len > 0 then
+        if leftSeen then stickArmed = true else stickBlocker:Show() end
+      end
+    elseif stick == "Movement" and stickArmed then
+      stickArmed = false
+      stickBlocker:Show()
+    end
+  end)
+  stickBlocker:SetScript("OnGamePadStick", function(_, stick)
+    if stick == "Camera" then stickBlocker:Hide() end
+  end)
+  -- The end of the frame: the blocker never stays up past the one Camera event.
+  stickListener:SetScript("OnUpdate", function()
+    leftSeen, stickArmed = false, false
+    stickBlocker:Hide()
+  end)
+  -- Setting OnGamePadStick turns stick listening on; keep both off until the wheel opens.
+  for _, frame in ipairs({ stickListener, stickBlocker }) do
+    if frame.EnableGamePadStick then pcall(frame.EnableGamePadStick, frame, false) end
+    frame:Hide()
+  end
+end
+
+local function captureSticks(on)
+  if not stickListener then return end
+  leftSeen, stickArmed = false, false
+  stickBlocker:Hide()
+  if on then
+    wipe(stickNames)
+    stickListener:Show()
+  else
+    stickListener:Hide()
+  end
+  for _, frame in ipairs({ stickListener, stickBlocker }) do
+    if frame.EnableGamePadStick then pcall(frame.EnableGamePadStick, frame, on) end
+  end
+end
+
 -- The right stick, as the game reports it. Which entry is the right stick isn't
 -- documented, so this takes the second one (the usual order is left, right).
 local cameraStick
 local function readStick()
+  -- While the stick is being taken the game may stop reporting it, so use what the events said.
+  if stickListener and stickListener:IsShown() and GetTime() - stickEvent.t < 0.2 then
+    return stickEvent.x, stickEvent.y, stickEvent.len
+  end
   if not (C_GamePad and C_GamePad.GetActiveDeviceID and C_GamePad.GetDeviceMappedState) then return end
   local id = C_GamePad.GetActiveDeviceID()
   local state = id and C_GamePad.GetDeviceMappedState(id)
@@ -1345,9 +1425,11 @@ local function createWheel()
 
   -- While the wheel is open the D-pad's left and right go to the buttons under
   -- them (the base bar's first and third), which turn a wheel page instead of acting.
+  createStickFrames()
   wheel:SetScript("OnShow", function()
     updateAll()
     suspendCamera(true)
+    captureSticks(true)
     if not InCombatLockdown() then
       wheelDpad = true
       SetOverrideBindingClick(bindOwner, true, "PADDLEFT", "FlatCrossbarButton1", "LeftButton")
@@ -1358,6 +1440,7 @@ local function createWheel()
     stickWasActive = false
     wheelSel = nil
     suspendCamera(false)
+    captureSticks(false)
     if wheelDpad then
       wheelDpad = false
       applyBindings() -- puts the D-pad back (after combat, if it is in combat now)
@@ -2048,6 +2131,10 @@ SlashCmdList.FLATCROSSBAR = function(input)
 
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
+    local heard = {}
+    for name, count in pairs(stickNames) do heard[#heard + 1] = name .. " x" .. count end
+    table.sort(heard)
+    print_("stick events heard while the wheel was last open: " .. (#heard > 0 and table.concat(heard, ", ") or "none"))
     for _, key in ipairs({ "PAD1", "PAD2", "PAD3", "PAD4", "PADDLEFT", "PADDRIGHT", "PADLSTICK" }) do
       local ok, bound = pcall(GetBindingAction, key, true)
       print_(key .. " is bound to: " .. tostring(ok and bound ~= "" and bound or "(nothing)"))

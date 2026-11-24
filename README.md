@@ -129,7 +129,7 @@ The wheel does not use the crossbar's slots. It reads the normal keyboard and mo
 
 The slot numbers come from the game's own action bar pages (bar 6 is slots 145-156, 7 is 157-168, 8 is 169-180).
 
-While the wheel is open the pad's camera speeds (`GamePadCameraYawSpeed` and `GamePadCameraPitchSpeed`) are set to 0 so aiming with the right stick does not turn the camera; your values are kept in the saved variables and put back when the wheel closes (and at login if the game ended badly in between). The movement stick keeps walking. Not checked in the real client.
+While the wheel is open the right stick is taken from the game so it only aims the wheel. The game fires the raw sticks (Left, Right) and then their virtual twins (Movement, Camera) each frame; a frame that passes events on listens, and a frame above it that does not is shown just before the Camera event, which keeps it from the game while the movement stick keeps walking. As a second measure the pad's camera speeds (`GamePadCameraYawSpeed` and `GamePadCameraPitchSpeed`) are set to 0 meanwhile and put back afterwards (kept in the saved variables, so a crash cannot leave the camera still). `/fcb status` lists which stick events were heard the last time the wheel was open. Not checked in the real client.
 
 ## What is shared between characters
 

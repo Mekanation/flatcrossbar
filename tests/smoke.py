@@ -192,6 +192,19 @@ try('wheel press', function()
   for _, h in ipairs(wbtn.__hooks.PreClick or {}) do h(wbtn, 'LeftButton', true) end
 end)
 note('wheel open after press: ' .. tostring(wheel:IsShown()))
+local lst, blk = G.FlatCrossbarStickListener, G.FlatCrossbarStickBlocker
+lst.__scripts.OnGamePadStick(lst, 'Right', 0, 1, 1)
+note('blocker up for the camera stick: ' .. tostring(blk:IsShown()))
+blk.__scripts.OnGamePadStick(blk, 'Camera', 0, 1, 1)
+note('blocker down after it took the Camera event: ' .. tostring(blk:IsShown()))
+lst.__scripts.OnUpdate(lst)
+lst.__scripts.OnGamePadStick(lst, 'Left', 0, 1, 1)
+lst.__scripts.OnGamePadStick(lst, 'Right', 0, 1, 1)
+note('blocker waits while the left stick is walking: ' .. tostring(blk:IsShown()))
+lst.__scripts.OnGamePadStick(lst, 'Movement', 0, 1, 1)
+note('blocker up once Movement has passed: ' .. tostring(blk:IsShown()))
+lst.__scripts.OnUpdate(lst)
+note('blocker down at the end of the frame: ' .. tostring(blk:IsShown()))
 note('camera speed while the wheel is open: ' .. tostring(cvars.GamePadCameraYawSpeed) .. ' / ' .. tostring(cvars.GamePadCameraPitchSpeed) .. ', saved: ' .. tostring(FlatCrossbarDB.wheelSavedCamera and FlatCrossbarDB.wheelSavedCamera.GamePadCameraYawSpeed))
 local b3 = G.FlatCrossbarButton3
 local pageBefore = FlatCrossbarDB.wheelPage
