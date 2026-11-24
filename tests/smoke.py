@@ -52,6 +52,7 @@ function Stub.CreateMaskTexture(self) return newStub('Mask') end
 function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
+function Stub.SetVertexColor(self, r) rawset(self, '__vertex', r) end
 function Stub.SetAtlas(self, atlas) rawset(self, '__atlas', atlas); rawset(self, '__atlasCalls', (rawget(self, '__atlasCalls') or 0) + 1) end
 function Stub.SetCooldownFromDurationObject(self, d) rawset(self, '__fromDuration', true) end
 function Stub.Clear(self) rawset(self, '__fromDuration', false) end
@@ -284,9 +285,11 @@ try('/fcb lock (for the fade)', slash, 'lock')
 GamepadMainActionBarFrame.PageUnit = { actionBars = { topBar = 'top', leftBar = 'left', rightBar = 'right', bottomBar = 'bottom' }, active = 'top', GetActiveBar = function(self) return self.active end }
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with nothing held (locked): base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
+note('icon brightness with the Base bar active: ' .. tostring(rawget(G.FlatCrossbarButton1.icon, '__vertex')))
 GamepadMainActionBarFrame.PageUnit.active = 'left'
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with LT held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()) .. ' RT=' .. string.format('%.2f', G.FlatCrossbarGroup3:GetAlpha()))
+note('icon brightness with LT active: base bar button=' .. tostring(rawget(G.FlatCrossbarButton1.icon, '__vertex')))
 GamepadMainActionBarFrame.PageUnit.active = 'top'
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with nothing held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))

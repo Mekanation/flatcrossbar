@@ -160,3 +160,5 @@ Act, Insp, Back and Jump on the Base bar show the same pictures the game's own b
 ## Wheel sensitivity
 
 `/fcb wheelsens low|medium|high` sets how easily the right stick moves the wheel selection (shared across characters, `medium` by default). It combines a dead zone (how far the stick must be pushed to select, and a little less to let go) with a hold margin: the selection stays on a slice until the stick is some degrees past its edge, so it does not flicker on a border. `high` is the old behaviour (switch right at the edge), `low` needs a harder push and a clearer move.
+
+The action icons are a little duller than the controller-button icons on top of them so those stand out, except on the bar in use (Base when no trigger is held, otherwise the one you are holding): its icons are at full brightness while the other bars fade and stay dull. With the fade off, unlocked, or in keyboard mode no bar has the focus and all icons keep the dull look.

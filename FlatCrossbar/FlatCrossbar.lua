@@ -85,6 +85,7 @@ local toolbarHandle
 local layoutToolbar, relayout, updateSpecialIcons
 local buildError
 local manualHidden = false -- /fcb hide
+local fadeActive -- the bar in use (nil: none has the focus)
 local wheelDpad = false -- the wheel is open: D-pad left/right turn its pages
 local yielding = false -- a bag, bank or vendor window is up: the pad binds step aside
 local wheel, wheelPageButton, wheelHeaderButton
@@ -606,6 +607,13 @@ local function updateCooldown(btn, action)
   end
 end
 
+-- The action icons are a little dull so the button glyphs on top stand out, except on
+-- the bar in use, whose icons are at full brightness. The wheel's slices are always bright.
+local function iconLevel(btn)
+  if not btn.index then return 1 end
+  return (fadeActive ~= nil and fadeActive == BUTTON_GROUP[btn.index]) and 1 or ICON_DIM
+end
+
 local function updateButton(btn, actionOverride)
   local action
   if actionOverride == nil then
@@ -632,7 +640,8 @@ local function updateButton(btn, actionOverride)
     if rangeState[action] == false then
       btn.icon:SetVertexColor(0.8, 0.1, 0.1)
     elseif usable then
-      btn.icon:SetVertexColor(ICON_DIM, ICON_DIM, ICON_DIM)
+      local level = iconLevel(btn)
+      btn.icon:SetVertexColor(level, level, level)
     elseif lacking then
       btn.icon:SetVertexColor(0.3, 0.3, 1)
     else
@@ -1952,7 +1961,7 @@ local function activeGroup()
   return gameActiveBar() or 1
 end
 
-local fadeActive, fadeElapsed = nil, 0 -- nil: nothing fades
+local fadeElapsed = 0
 local fader = CreateFrame("Frame", "FlatCrossbarFader")
 fader:SetScript("OnUpdate", function(_, elapsed)
   if not db or #groupFrames == 0 then return end
@@ -1964,7 +1973,9 @@ fader:SetScript("OnUpdate", function(_, elapsed)
     -- the others fade. While unlocked every bar stays clear so they can be arranged.
     local live = db.fade and db.locked and (mode == "controller" or mode == "both")
       and not (bindCapture and bindCapture:IsShown())
+    local previous = fadeActive
     fadeActive = live and activeGroup() or nil
+    if fadeActive ~= previous then updateAll() end -- the icons on the bar in use are not dimmed
   end
   local k = math.min(1, elapsed * 14)
   for g, gf in ipairs(groupFrames) do
