@@ -106,7 +106,7 @@ One conflict that is not fixable in the addon: the shoulder bars need Steam Inpu
 
 ## The game's own four buttons
 
-To give one of them another button: `/fcb bindto jump` (or `dynamic`, `inspect`, `back`) and press the new controller button, or `/fcb bind`, hover the slot and press it. The new button works in addition to the game's own one; `/fcb clear jump` removes it again.
+To give one of them another button: `/fcb bindto jump` (or `dynamic`, `inspect`, `back`) and press the new controller button, or `/fcb bind`, hover the slot and press it. The new button works in addition to the game's own one; `/fcb clear jump` removes it again, and `/fcb resetbuttons` takes your binds off all four so they are the game's own again. They can't be put on the D-pad or A, B, X, Y, which the game's menus and windows use.
 
 The base bar's face buttons are the game's own: **Act** (dynamic action: interact or attack), **Insp** (inspect: the target menu), **Back** (cancel cast, clear target) and **Jump**. They are the game's hidden bindings `GAMEPADACTIONBUTTON5-8`, and they show as dim labelled slots in the Base block. They are bound like the other buttons, to controller buttons only:
 

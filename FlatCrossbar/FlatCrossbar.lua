@@ -329,6 +329,12 @@ local TARGETS = {
   jump = { nil, nil, "jump", true, "GAMEPADACTIONBUTTON8" },
 }
 local RESERVED_TARGETS = { "dynamic", "inspect", "back", "jump" }
+-- The buttons the game's menus and windows use to move around and confirm. An override on
+-- one of these for a game button would take it from the window that is open.
+local MENU_KEYS = {
+  PAD1 = true, PAD2 = true, PAD3 = true, PAD4 = true,
+  PADDUP = true, PADDDOWN = true, PADDLEFT = true, PADDRIGHT = true,
+}
 local RESERVED_LABEL = { "Act", "Insp", "Back", "Jump" }
 local RESERVED_DEFAULT = { dynamic = "PAD3", inspect = "PAD4", back = "PAD2", jump = "PAD1" }
 local TARGET_ALIASES = {
@@ -963,6 +969,10 @@ local function onCaptureKey(_, key)
       .. (IsShiftKeyDown() and "SHIFT-" or "") .. key
     -- Controller buttons go in the controller set, everything else in the keyboard set.
     local isPad = key:find("^PAD") and true or false
+    if isPad and type(target) == "string" and TARGETS[target] and TARGETS[target][5] and MENU_KEYS[padBase(full)] then
+      print_("that button is what the game's menus and windows use, so it can't take one of the game's four buttons. Pick a bumper, trigger or stick press.")
+      return
+    end
     if not isPad and type(target) == "string" and TARGETS[target][4] then
       print_("the wheel is controller-only; press a controller button.")
       return
@@ -1869,6 +1879,7 @@ local HELP = {
   "/fcb wheelbars 6 7 8 - the keyboard action bars the wheel uses (not the crossbar's)",
   "/fcb hidekb [on|off] - hide the bars and toolbar in keyboard mode (the game's own bars are used there)",
   "/fcb icons [shapes|letters|auto] - the button icons: PlayStation shapes (default), Xbox letters, or whatever the game uses",
+  "/fcb resetbuttons - take your binds off Act, Insp, Back and Jump so they are the game's own again",
   "/fcb snap [on|off] - snap bars to each other while you drag them (hold Ctrl to skip once)",
   "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
   "/fcb fade [on|off|0-1] - the bar in use has the focus (Base when no trigger is held) and the others dim; only while locked",
@@ -2015,6 +2026,11 @@ SlashCmdList.FLATCROSSBAR = function(input)
       applyBindings() -- redraws the icons
     end
     print_("button icons: " .. db.iconSet .. " (/fcb icons shapes|letters|auto)")
+  elseif cmd == "resetbuttons" then
+    if InCombatLockdown() then return print_("can't change keybinds in combat.") end
+    for _, target in ipairs(RESERVED_TARGETS) do db.pad[target] = nil end
+    applyBindings()
+    print_("Act, Insp, Back and Jump are the game's own again (X, Y, B and A on a standard layout).")
   elseif cmd == "snap" then
     if arg == "on" then db.snap = true elseif arg == "off" then db.snap = false else db.snap = not db.snap end
     print_("snapping " .. (db.snap and "on" or "off"))

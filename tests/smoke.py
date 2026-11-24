@@ -372,6 +372,12 @@ GamepadMode.FrameControlsManager.isUIFocused = false
 events.__scripts.OnUpdate(events, 1)
 note('binds applied after the interface focus is released: ' .. tostring(BINDS - focusBefore))
 GamepadMode = nil
+-- binding a game button to a menu button is refused; resetbuttons clears them
+try('/fcb bindto back', slash, 'bindto back')
+try('capture PAD1 for back (refused)', cap.__scripts.OnGamePadButtonDown, cap, 'PAD1')
+note('back bind after trying PAD1: ' .. tostring(FlatCrossbarDB.pad.back))
+try('/fcb resetbuttons', slash, 'resetbuttons')
+note('after resetbuttons: jump=' .. tostring(FlatCrossbarDB.pad.jump) .. ' back=' .. tostring(FlatCrossbarDB.pad.back))
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')
