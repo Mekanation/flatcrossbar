@@ -131,30 +131,6 @@
 	<Binding name="FLATCROSSBAR44" category="ADDONS">
 		CLICK FlatCrossbarButton44:LeftButton
 	</Binding>
-	<Binding name="FLATCROSSBAR45" category="ADDONS">
-		CLICK FlatCrossbarButton45:LeftButton
-	</Binding>
-	<Binding name="FLATCROSSBAR46" category="ADDONS">
-		CLICK FlatCrossbarButton46:LeftButton
-	</Binding>
-	<Binding name="FLATCROSSBAR47" category="ADDONS">
-		CLICK FlatCrossbarButton47:LeftButton
-	</Binding>
-	<Binding name="FLATCROSSBAR48" category="ADDONS">
-		CLICK FlatCrossbarButton48:LeftButton
-	</Binding>
-	<Binding name="FLATCROSSBAR49" category="ADDONS">
-		CLICK FlatCrossbarButton49:LeftButton
-	</Binding>
-	<Binding name="FLATCROSSBAR50" category="ADDONS">
-		CLICK FlatCrossbarButton50:LeftButton
-	</Binding>
-	<Binding name="FLATCROSSBAR51" category="ADDONS">
-		CLICK FlatCrossbarButton51:LeftButton
-	</Binding>
-	<Binding name="FLATCROSSBAR52" category="ADDONS">
-		CLICK FlatCrossbarButton52:LeftButton
-	</Binding>
 	<Binding name="FLATCROSSBARPAGENEXT" category="ADDONS">
 		CLICK FlatCrossbarPageButton:LeftButton
 	</Binding>

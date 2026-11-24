@@ -4,7 +4,7 @@
 -- storage slots": 3 standard pages x 4 bars (top/left/right/bottom) x 8
 -- buttons, with the top bar's right-hand 4 reserved for UI actions, leaving
 -- 28 usable buttons per page (pages 1-2 are paged here; page 3's left and
--- right and bottom bars hold the three shoulder bars). Blizzard shows only one bar at a time and picks
+-- and right bars hold the two shoulder bars). Blizzard shows only one bar at a time and picks
 -- it with the trigger modifiers. This addon shows all 28 of a page at once as
 -- ordinary buttons over the same storage slots, so whatever you set up on the
 -- crossbar shows up here, and the other way round.
@@ -26,9 +26,9 @@
 local ADDON = ...
 
 local MAIN_BUTTONS = 28 -- the four crossbar bars, paged
-local NUM_BUTTONS = 52 -- plus the three shoulder bars (LB, RB, LB+RB), 8 buttons each
+local NUM_BUTTONS = 44 -- plus the two shoulder bars (LB, RB), 8 buttons each
 local NUM_PAGES = 2 -- pages the main bars cycle through
-local EXTRA_PAGE = 3 -- the shoulder bars live in this page's left, right and bottom bars
+local EXTRA_PAGE = 3 -- the shoulder bars live in this page's left and right bars
 local BUTTON_SIZE = 38
 local SPACING = 4
 local HEADER_HEIGHT = 18
@@ -110,19 +110,19 @@ end
 local PAGE_UNIT_SLOT_IDS = {}
 for id = 1, 4 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 for id = 9, 32 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
--- The shoulder bars: 9-16 (left bar), 17-24 (right bar) and 25-32 (bottom bar), on EXTRA_PAGE.
-for id = 9, 32 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
+-- The shoulder bars: 9-16 (left bar) and 17-24 (right bar), on EXTRA_PAGE.
+for id = 9, 24 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 
 -- The crossbar's four bars are 8 buttons each (slots 1-4 on the D-pad, 5-8 on
 -- the face buttons) and are picked by the triggers held: none = top, LT = left,
 -- RT = right, LT+RT = bottom (PageUnit.lua). The groups layout draws each bar as
 -- a small 2x4 block under its trigger label.
 local GROUP_SIZE = 8
-local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LB", "RB", "LB+RB" }
+local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LB", "RB" }
 -- The triggers reach the game as Shift (LT) and Ctrl (RT) when binding keys.
--- The shoulder bars are Alt (LB), Alt+Ctrl (RB) and Alt+Shift (LB+RB): Steam Input
--- sends those for the shoulder buttons, which are not modifiers by themselves.
-local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-", "ALT-SHIFT-" }
+-- The shoulder bars are Alt (LB) and Alt+Ctrl (RB): Steam Input sends those for the
+-- shoulder buttons, which are not modifiers by themselves.
+local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-" }
 local SLOT_PAD = { "PADDLEFT", "PADDUP", "PADDRIGHT", "PADDDOWN", "PAD3", "PAD4", "PAD2", "PAD1" }
 local BUTTON_GROUP, BUTTON_SLOT = {}, {}
 for i, id in ipairs(PAGE_UNIT_SLOT_IDS) do
@@ -190,7 +190,7 @@ local function shortKey(key)
     local out
     if mods:find("ALT%-") then
       -- the shoulder bars
-      out = mods:find("CTRL%-") and "RB+" or (mods:find("SHIFT%-") and "LB+RB+" or "LB+")
+      out = mods:find("CTRL%-") and "RB+" or "LB+"
     else
       out = (mods:find("SHIFT%-") and "LT+" or "") .. (mods:find("CTRL%-") and "RT+" or "")
     end
@@ -502,10 +502,10 @@ local HANDLE_HEIGHT = 12
 local SIDE_WIDTH = 52
 
 -- What is held for each bar, and for each of its two rows, shown beside it.
-local SIDE_COMBO = { "", "LT +", "RT +", "LT+RT +", "LB +", "RB +", "LB+RB +" }
+local SIDE_COMBO = { "", "LT +", "RT +", "LT+RT +", "LB +", "RB +" }
 local SIDE_ROW = { "D-pad", "X Y B A" }
 
--- The four crossbar bars in a row; the shoulder bars above LT, RT and LT+RT.
+-- The four crossbar bars in a row; the shoulder bars above LT and RT.
 local function groupDefaultPoint(g)
   local step = GROUP_WIDTH + SIDE_WIDTH + GROUP_GAP
   local column = g > 4 and (g - 3) or g
@@ -1208,6 +1208,9 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
         if db.pad[i] == nil then db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]] end
       end
       db.extraSeedVersion = 2
+    end
+    for i = NUM_BUTTONS + 1, NUM_BUTTONS + 8 do
+      db.pad[i] = nil -- the LB+RB bar's old binds
     end
     local built, err = pcall(function()
       createFrames()

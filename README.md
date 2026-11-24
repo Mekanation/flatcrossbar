@@ -65,18 +65,17 @@ On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for
 
 ## Shoulder bars
 
-Three more blocks, **LB**, **RB** and **LB+RB**, sit above the LT, RT and LT+RT blocks with 8 buttons each. They are bound under Alt (LB), Alt+Ctrl (RB) and Alt+Shift (LB+RB), so they work in combat. A shoulder button is not a modifier by itself, so Steam Input has to send those:
+Two more blocks, **LB** and **RB**, sit above the LT and RT blocks with 8 buttons each. They are bound under Alt (LB) and Alt+Ctrl (RB), so they work in combat. A shoulder button is not a modifier by itself, so Steam Input has to send those:
 
 1. Left bumper: output `Alt` while held.
 2. Right bumper: output `Alt` and `Ctrl` while held.
-3. Both bumpers: output `Alt` and `Shift` (a chord on one of them).
-4. Keep the triggers as Shift (LT) and Ctrl (RT).
+3. Keep the triggers as Shift (LT) and Ctrl (RT).
 
-Don't hold LT or RT together with a bumper: Alt+Shift is both "LB+RB" and "LT with LB", so they would trigger the same bar. Any button can be rebound with `/fcb bind` if you pick other outputs.
+Don't hold LT or RT together with a bumper. Alt+Ctrl is both "RB" and "RT with LB", so they would trigger the same bar. Any button can be rebound with `/fcb bind` if you pick other outputs.
 
-Their actions are stored in page 3's left, right and bottom crossbar bars, so paging cycles pages 1-2 only. The page-3 buttons still show in the game's crossbar editor. Saves from before this change get the default binds for any new buttons once.
+Their actions are stored in page 3's left and right crossbar bars, so paging cycles pages 1-2 only. The page-3 buttons still show in the game's crossbar editor.
 
-Not checked in the real client: that Alt, Alt+Ctrl and Alt+Shift are free in the game's controller mode, and how Steam Input handles the LB+RB chord.
+Not checked in the real client: that Alt and Alt+Ctrl are free in the game's controller mode.
 
 ## Tab-target macros
 
