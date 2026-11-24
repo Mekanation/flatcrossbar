@@ -3,7 +3,8 @@
 -- The crossbar (Blizzard_GamepadActionBars) holds its actions in "gamepad
 -- storage slots": 3 standard pages x 4 bars (top/left/right/bottom) x 8
 -- buttons, with the top bar's right-hand 4 reserved for UI actions, leaving
--- 28 usable buttons per page. Blizzard shows only one bar at a time and picks
+-- 28 usable buttons per page (pages 1-2 are paged here; page 3's left and
+-- right bars hold the two double-tap bars). Blizzard shows only one bar at a time and picks
 -- it with the trigger modifiers. This addon shows all 28 of a page at once as
 -- ordinary buttons over the same storage slots, so whatever you set up on the
 -- crossbar shows up here, and the other way round.
@@ -24,8 +25,10 @@
 
 local ADDON = ...
 
-local NUM_BUTTONS = 28
-local NUM_PAGES = 3
+local MAIN_BUTTONS = 28 -- the four crossbar bars, paged
+local NUM_BUTTONS = 44 -- plus the two double-tap bars, 8 buttons each
+local NUM_PAGES = 2 -- pages the main bars cycle through
+local EXTRA_PAGE = 3 -- the double-tap bars live in this page's left and right bars
 local BUTTON_SIZE = 38
 local SPACING = 4
 local HEADER_HEIGHT = 18
@@ -51,7 +54,7 @@ local DEFAULTS = {
   wheelScale = 1,
   locked = false,
   hideBlizzard = true,
-  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 230 },
+  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 330 },
 }
 
 BINDING_HEADER_FLATCROSSBAR = "FlatCrossbar"
@@ -103,20 +106,29 @@ end
 local PAGE_UNIT_SLOT_IDS = {}
 for id = 1, 4 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 for id = 9, 32 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
+-- The double-tap bars: 9-16 (left bar) and 17-24 (right bar), on EXTRA_PAGE.
+for id = 9, 24 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 
 -- The crossbar's four bars are 8 buttons each (slots 1-4 on the D-pad, 5-8 on
 -- the face buttons) and are picked by the triggers held: none = top, LT = left,
 -- RT = right, LT+RT = bottom (PageUnit.lua). The groups layout draws each bar as
 -- a small 2x4 block under its trigger label.
 local GROUP_SIZE = 8
-local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT" }
+local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LT x2", "RT x2" }
 -- The triggers reach the game as Shift (LT) and Ctrl (RT) when binding keys.
-local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-" }
+-- The double taps are Alt (LT) and Alt+Ctrl (RT): set a Steam Input "Double Press"
+-- activator on each trigger to send them.
+local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-" }
 local SLOT_PAD = { "PADDLEFT", "PADDUP", "PADDRIGHT", "PADDDOWN", "PAD3", "PAD4", "PAD2", "PAD1" }
 local BUTTON_GROUP, BUTTON_SLOT = {}, {}
 for i, id in ipairs(PAGE_UNIT_SLOT_IDS) do
-  BUTTON_GROUP[i] = math.floor((id - 1) / GROUP_SIZE) + 1
-  BUTTON_SLOT[i] = (id - 1) % GROUP_SIZE + 1
+  if i <= MAIN_BUTTONS then
+    BUTTON_GROUP[i] = math.floor((id - 1) / GROUP_SIZE) + 1
+    BUTTON_SLOT[i] = (id - 1) % GROUP_SIZE + 1
+  else
+    BUTTON_GROUP[i] = 5 + math.floor((i - MAIN_BUTTONS - 1) / GROUP_SIZE)
+    BUTTON_SLOT[i] = (i - MAIN_BUTTONS - 1) % GROUP_SIZE + 1
+  end
 end
 
 -- Same arithmetic as GamepadActionBarBindingUtil in Blizzard_GamepadActionBars
@@ -171,8 +183,12 @@ local function shortKey(key)
   if not base then mods, base = "", key end
   if base:find("^PAD") then
     -- On a controller button, Shift and Ctrl are the left and right triggers.
-    local out = (mods:find("SHIFT%-") and "LT+" or "") .. (mods:find("CTRL%-") and "RT+" or "")
-      .. (mods:find("ALT%-") and "a" or "")
+    local out
+    if mods:find("ALT%-") then
+      out = mods:find("CTRL%-") and "RT2+" or "LT2+" -- the double-tap bars
+    else
+      out = (mods:find("SHIFT%-") and "LT+" or "") .. (mods:find("CTRL%-") and "RT+" or "")
+    end
     return out .. (SHORT_KEY[base] or (base:gsub("^PAD", "P")))
   end
   mods = mods:gsub("ALT%-", "a"):gsub("CTRL%-", "c"):gsub("SHIFT%-", "s")
@@ -345,8 +361,11 @@ local function applyPage(page)
   page = math.max(1, math.min(NUM_PAGES, page))
   db.page = page
   pageButton:SetAttribute("page", page)
-  for i = 1, NUM_BUTTONS do
+  for i = 1, MAIN_BUTTONS do
     buttons[i]:SetAttribute("action", storageSlot(page, PAGE_UNIT_SLOT_IDS[i]))
+  end
+  for i = MAIN_BUTTONS + 1, NUM_BUTTONS do
+    buttons[i]:SetAttribute("action", storageSlot(EXTRA_PAGE, PAGE_UNIT_SLOT_IDS[i]))
   end
   pageButton:SetText("Pg " .. page)
   enableRangeChecks()
@@ -457,12 +476,15 @@ local HANDLE_HEIGHT = 12
 local SIDE_WIDTH = 52
 
 -- What is held for each bar, and for each of its two rows, shown beside it.
-local SIDE_COMBO = { "", "LT +", "RT +", "LT+RT +" }
+local SIDE_COMBO = { "", "LT +", "RT +", "LT+RT +", "2x LT +", "2x RT +" }
 local SIDE_ROW = { "D-pad", "X Y B A" }
 
+-- The four crossbar bars in a row; the double-tap bars above LT and RT.
 local function groupDefaultPoint(g)
   local step = GROUP_WIDTH + SIDE_WIDTH + GROUP_GAP
-  return { "BOTTOM", "UIParent", "BOTTOM", (g - (#GROUP_LABEL + 1) / 2) * step + SIDE_WIDTH / 2, 120 }
+  local column = g > 4 and (g - 3) or g
+  local y = g > 4 and (120 + GROUP_HEIGHT + 2 * HANDLE_HEIGHT + 8) or 120
+  return { "BOTTOM", "UIParent", "BOTTOM", (column - 2.5) * step + SIDE_WIDTH / 2, y }
 end
 
 local function setPoint(frame, p)
@@ -878,7 +900,7 @@ local function createFrames()
       local b = self:GetFrameRef("b" .. i)
       b:SetAttribute("action", self:GetAttribute("slot-" .. page .. "-" .. i))
     end
-  ]], NUM_PAGES, NUM_BUTTONS))
+  ]], NUM_PAGES, MAIN_BUTTONS))
   pageButton:HookScript("PostClick", function(self, mouse)
     if not securePaging then
       -- No secure handler on this client: page out of combat only.
@@ -986,7 +1008,7 @@ local function createFrames()
   end
   createWheel()
   for page = 1, NUM_PAGES do
-    for i = 1, NUM_BUTTONS do
+    for i = 1, MAIN_BUTTONS do
       pageButton:SetAttribute("slot-" .. page .. "-" .. i, storageSlot(page, PAGE_UNIT_SLOT_IDS[i]))
     end
   end
@@ -1017,8 +1039,8 @@ end
 
 -- Controller defaults: each bar's D-pad and face buttons under its trigger
 -- (Base = bare, LT = Shift, RT = Ctrl, LT+RT = both). Only for a fresh set.
-local function seedPadDefaults()
-  for i = 1, NUM_BUTTONS do
+local function seedPadDefaults(from)
+  for i = from or 1, NUM_BUTTONS do
     db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]]
   end
 end
@@ -1038,6 +1060,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     copyDefaults(db, DEFAULTS)
     if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
     db.padSeeded = true
+    if not db.extraSeeded then
+      -- Saves from before the double-tap bars: give those 16 buttons their defaults.
+      if db.pad[MAIN_BUTTONS + 1] == nil then seedPadDefaults(MAIN_BUTTONS + 1) end
+      db.extraSeeded = true
+    end
     local built, err = pcall(function()
       createFrames()
       restorePosition()
@@ -1093,7 +1120,7 @@ local HELP = {
   "/fcb toggle - switch keyboard / controller",
   "/fcb bind - hover a button, press a key or controller button",
   "/fcb clear [n|all] - clear the keybinds of button n (or all)",
-  "/fcb page 1-3 - show that crossbar page",
+  "/fcb page 1-2 - show that crossbar page",
   "/fcb wheel - preview the wheel   /fcb wheelpage 1-4   /fcb wheelscale N",
   "/fcb bindto wheel|wheelnext|wheelprev|pagenext|pageprev - bind that, then press a key",
   "/fcb helper [on|off] - the combo text beside each bar (LT +, RT + ...)",
@@ -1207,7 +1234,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
     print_("helper text " .. (db.helper and "on" or "off"))
   elseif cmd == "resetpos" then
     if InCombatLockdown() then return print_("can't do that in combat.") end
-    db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 230 }
+    db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 330 }
     db.groupPoints = {}
     restorePosition()
   elseif cmd == "blizzard" then

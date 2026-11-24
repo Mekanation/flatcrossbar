@@ -62,3 +62,15 @@ On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for
 - `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle, Pg and Bind buttons.
 - `/fcb resetpos` puts the blocks and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.
+
+## Double-tap bars
+
+Two more blocks, **LT x2** and **RT x2**, give a double-tap of each trigger its own 8 buttons. They sit above the LT and RT blocks and are bound under Alt (LT x2) and Alt+Ctrl (RT x2), so they work in combat. The addon does not detect the double-tap itself: set it up in Steam Input.
+
+1. For the left trigger, add a **Double Press** activator that outputs `Alt`.
+2. For the right trigger, add a **Double Press** activator that outputs `Alt` and `Ctrl` together (two commands on the one activator).
+3. Keep the normal single-press bindings for the triggers (Shift for LT, Ctrl for RT).
+
+Their actions are stored in page 3's left and right crossbar bars, so paging now cycles pages 1-2 only. The page-3 buttons still show in the game's own crossbar editor. Saves from before this change get the default binds for the 16 new buttons once.
+
+Not checked in the real client: that Alt and Alt+Ctrl are free in the game's controller mode, and that a Steam Input double-press holds the output while the second press is held.
