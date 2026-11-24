@@ -378,6 +378,19 @@ try('capture PAD1 for back (refused)', cap.__scripts.OnGamePadButtonDown, cap, '
 note('back bind after trying PAD1: ' .. tostring(FlatCrossbarDB.pad.back))
 try('/fcb resetbuttons', slash, 'resetbuttons')
 note('after resetbuttons: jump=' .. tostring(FlatCrossbarDB.pad.jump) .. ' back=' .. tostring(FlatCrossbarDB.pad.back))
+-- the game's own icons on the four game buttons
+local oldUnit = GamepadMainActionBarFrame.PageUnit
+local function fakeIcon(atlas) return { IsShown = function() return true end, GetAtlas = function() return atlas end, GetTexture = function() return nil end, GetTexCoord = function() return 0, 1, 0, 1 end } end
+GamepadMainActionBarFrame.PageUnit = { actionBars = { topBar = { Right = {
+  ActionButton1 = { SpecialActionIcon = fakeIcon('native-interact') }, ActionButton2 = { SpecialActionIcon = fakeIcon('native-inspect') },
+  ActionButton3 = { SpecialActionIcon = fakeIcon('native-back') }, ActionButton4 = { SpecialActionIcon = fakeIcon('native-jump') } } } } }
+try('/fcb mode controller (special icons)', slash, 'mode controller')
+events.__scripts.OnUpdate(events, 1)
+note('game button icons (native): ' .. tostring(rawget(G.FlatCrossbarReserved1.Art, '__atlas')) .. ' ' .. tostring(rawget(G.FlatCrossbarReserved4.Art, '__atlas')))
+GamepadMainActionBarFrame.PageUnit = nil
+events.__scripts.OnUpdate(events, 1)
+note('game button icons (fallback): ' .. tostring(rawget(G.FlatCrossbarReserved2.Art, '__atlas')) .. ' ' .. tostring(rawget(G.FlatCrossbarReserved4.Art, '__atlas')))
+GamepadMainActionBarFrame.PageUnit = oldUnit
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

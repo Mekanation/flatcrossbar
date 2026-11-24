@@ -152,3 +152,7 @@ In combat the game can return cooldown times as secret values that an addon cann
 The controller binds step aside, and the game's own buttons take over, while the game menu, settings, character, spellbook, map, quest, gossip and similar windows are open, and whenever the game says a window has the gamepad interface focus. If a window still does not respond to the D-pad, A or B, run `/fcb status` with it open (it says whether the binds are stepping aside) and `/fcb keys` to see what the game receives.
 
 Bumpers: if Steam Input sends Alt and Alt+Ctrl for LB and RB (for the extra bars), the game never sees LB and RB, and windows that use them (tabs, pages) cannot. Put that on a Steam Input action layer you can switch off, or only turn it on while playing.
+
+## Icons on the game's four buttons
+
+Act, Insp, Back and Jump on the Base bar show the same pictures the game's own bar draws for them: the jump arrow, the exit button, the inspect crosshair (or the raid marker on your target), and the dynamic one that follows what you point at (interact, loot, attack). They are copied from the game's buttons while it keeps them hidden, with the same artwork as a fallback if they cannot be read. The controller button for each sits in the corner. Not checked in the real client.

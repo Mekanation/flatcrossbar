@@ -81,7 +81,7 @@ local buttons = {}
 local container, header, modeButton, bindButton, bindCapture
 local groupFrames, groupHandles, sideTexts, reservedSlots = {}, {}, {}, {}
 local toolbarHandle
-local layoutToolbar, relayout
+local layoutToolbar, relayout, updateSpecialIcons
 local buildError
 local manualHidden = false -- /fcb hide
 local wheelDpad = false -- the wheel is open: D-pad left/right turn its pages
@@ -374,6 +374,59 @@ local function updatePanels()
   for _, gf in ipairs(groupFrames) do gf:SetShown(show) end
 end
 
+-- Act, Insp, Back and Jump show the icons the game's own bar draws for them. They are
+-- copied from the game's buttons (the dynamic one changes with what you point at, the
+-- inspect one becomes the raid marker), with the same pictures as a fallback.
+local SPECIAL_FALLBACK = {
+  { texture = "Interface\\Cursor\\Interact" },
+  { atlas = "crosshair_inspect_32" },
+  { atlas = "128-redbutton-exit" },
+  { atlas = "gamepad-ability-icon-jump" },
+}
+
+local function nativeSpecialIcon(k)
+  local ok, icon = pcall(function()
+    local frame = _G.GamepadMainActionBarFrame
+    local unit = frame and type(frame.PageUnit) == "table" and frame.PageUnit or nil
+    local bars = unit and type(unit.actionBars) == "table" and unit.actionBars or nil
+    local right = bars and type(bars.topBar) == "table" and bars.topBar.Right or nil
+    local button = right and right["ActionButton" .. k]
+    return button and button.SpecialActionIcon
+  end)
+  return ok and icon or nil
+end
+
+local function copyIcon(destination, source)
+  local atlas = source:GetAtlas()
+  if atlas then
+    destination:SetAtlas(atlas)
+    return true
+  end
+  local texture = source:GetTexture()
+  if not texture then return false end
+  destination:SetTexture(texture)
+  destination:SetTexCoord(source:GetTexCoord())
+  return true
+end
+
+updateSpecialIcons = function()
+  if not db then return end
+  local mode = effectiveMode()
+  local pad = (mode == "controller" or mode == "both")
+  for k, slot in ipairs(reservedSlots) do
+    if slot.Art then
+      local shown = pcall(function()
+        local source = nativeSpecialIcon(k)
+        if source and source:IsShown() and copyIcon(slot.Art, source) then return end
+        local fallback = SPECIAL_FALLBACK[k]
+        if fallback.atlas then slot.Art:SetAtlas(fallback.atlas) else slot.Art:SetTexture(fallback.texture) end
+      end)
+      slot.Art:SetShown(shown)
+      slot.Label:SetShown(pad and not shown) -- the name stands in when no icon could be had
+    end
+  end
+end
+
 local function applyBindings()
   updateLabels()
   if InCombatLockdown() then
@@ -540,6 +593,7 @@ local function updateAll()
     if buttons[i] then updateButton(buttons[i]) end
   end
   if updateWheel then updateWheel() end
+  if updateSpecialIcons then updateSpecialIcons() end
 end
 
 local function enableRangeChecks()
@@ -1379,7 +1433,7 @@ local function createFrames()
     sideTexts[g] = { title }
   end
   for k = 1, 4 do
-    local slot = CreateFrame("Frame", nil, groupFrames[1])
+    local slot = CreateFrame("Frame", "FlatCrossbarReserved" .. k, groupFrames[1])
     slot:SetSize(BUTTON_SIZE, BUTTON_SIZE)
     local bg = slot:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
@@ -1389,6 +1443,15 @@ local function createFrames()
     slot.Label:SetPoint("BOTTOM", 0, 2)
     slot.Label:SetText(RESERVED_LABEL[k])
     addGlyph(slot)
+    -- The game's icon fills the slot; the button's icon moves to a corner.
+    slot.Art = slot:CreateTexture(nil, "ARTWORK")
+    slot.Art:SetPoint("TOPLEFT", 3, -3)
+    slot.Art:SetPoint("BOTTOMRIGHT", -3, 3)
+    slot.Glyph:ClearAllPoints()
+    slot.Glyph:SetPoint("BOTTOMRIGHT", -1, 1)
+    slot.Glyph:SetSize(14, 14)
+    slot.GlyphText:ClearAllPoints()
+    slot.GlyphText:SetPoint("BOTTOMRIGHT", -2, 1)
     slot:EnableMouse(true)
     slot:SetScript("OnEnter", function(self)
       hoverTarget = RESERVED_TARGETS[k]
@@ -1743,6 +1806,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
   yieldElapsed = 0
   -- The crossbar frame can be built or shown after login; keep it hidden.
   if db.hideBlizzard then applyBlizzardVisibility() end
+  updateSpecialIcons()
   -- Auto follows the game going in and out of gamepad mode.
   local gamepad = gamepadUIActive()
   if gamepad ~= lastGamepad then
