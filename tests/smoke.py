@@ -351,6 +351,23 @@ note('shapes: D-pad left = ' .. tostring(rawget(G.FlatCrossbarButton1.Glyph, '__
 try('/fcb icons letters', slash, 'icons letters')
 note('letters: D-pad left = ' .. tostring(rawget(G.FlatCrossbarButton1.Glyph, '__atlas')) .. ', slot 8 = ' .. tostring(rawget(G.FlatCrossbarButton8.Glyph, '__atlas')))
 try('/fcb icons shapes (back)', slash, 'icons shapes')
+-- the game menu and the interface focus make the pad binds step aside
+try('/fcb mode controller (menu)', slash, 'mode controller')
+events.__scripts.OnUpdate(events, 1)
+local menuBefore = BINDS
+G.GameMenuFrame = newStub('Frame', 'GameMenuFrame')
+events.__scripts.OnUpdate(events, 1)
+note('binds applied while the game menu is open: ' .. tostring(BINDS - menuBefore))
+G.GameMenuFrame:Hide()
+events.__scripts.OnUpdate(events, 1)
+note('binds applied after it closes: ' .. tostring(BINDS - menuBefore))
+GamepadMode = { FrameControlsManager = { isUIFocused = true } }
+events.__scripts.OnUpdate(events, 1)
+local focusBefore = BINDS
+GamepadMode.FrameControlsManager.isUIFocused = false
+events.__scripts.OnUpdate(events, 1)
+note('binds applied after the interface focus is released: ' .. tostring(BINDS - focusBefore))
+GamepadMode = nil
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

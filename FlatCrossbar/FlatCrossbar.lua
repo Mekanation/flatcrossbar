@@ -1492,7 +1492,13 @@ end
 
 -- Windows that use the controller's own buttons ----------------------------------
 
-local YIELD_FRAMES = { "ContainerFrameCombinedBags", "BankFrame", "MerchantFrame", "MailFrame", "TradeFrame" }
+local YIELD_FRAMES = {
+  "ContainerFrameCombinedBags", "BankFrame", "MerchantFrame", "MailFrame", "TradeFrame",
+  "GameMenuFrame", "SettingsPanel", "CharacterFrame", "SpellBookFrame", "PlayerSpellsFrame",
+  "WorldMapFrame", "GossipFrame", "QuestFrame", "FriendsFrame", "CommunitiesFrame",
+  "AchievementFrame", "EncounterJournal", "CollectionsJournal", "PVEFrame", "ProfessionsFrame",
+  "AuctionHouseFrame",
+}
 for i = 1, 13 do YIELD_FRAMES[#YIELD_FRAMES + 1] = "ContainerFrame" .. i end
 
 local function frameShown(name)
@@ -1540,8 +1546,20 @@ local function prefixWindowShown()
   return false
 end
 
+-- The game's gamepad interface focus: while a menu or window has it, the D-pad, A, B and
+-- the bumpers belong to that window. Read with care: these are the game's own tables.
+local function uiFocused()
+  local ok, focused = pcall(function()
+    local manager = _G.GamepadMode and rawget(_G.GamepadMode, "FrameControlsManager")
+    if not manager then return false end
+    return rawget(manager, "isUIFocused") == true
+  end)
+  return ok and focused or false
+end
+
 local function anyYieldFrameShown()
   if not db.yield then return false end
+  if uiFocused() then return true end
   for _, name in ipairs(YIELD_FRAMES) do
     if frameShown(name) then return true end
   end

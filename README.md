@@ -146,3 +146,9 @@ One thing the addon cannot fix: if Steam Input sends Alt for LB and Alt+Ctrl for
 The icons on the buttons are the game's own menu icons. By default they are the PlayStation set (cross, circle, square and triangle for A, B, X and Y, with the D-pad, bumper, trigger and stick icons to match); `/fcb icons letters` switches to the Xbox letters and `/fcb icons auto` lets the game pick for the controller in use. It is a shared setting.
 
 In combat the game can return cooldown times as secret values that an addon cannot pass on. The buttons try the usual call first and, if it fails, set the cooldown from the game's duration objects instead (they print one line saying so, and `/fcb status` shows it). Not checked in the real client.
+
+## Windows and menus
+
+The controller binds step aside, and the game's own buttons take over, while the game menu, settings, character, spellbook, map, quest, gossip and similar windows are open, and whenever the game says a window has the gamepad interface focus. If a window still does not respond to the D-pad, A or B, run `/fcb status` with it open (it says whether the binds are stepping aside) and `/fcb keys` to see what the game receives.
+
+Bumpers: if Steam Input sends Alt and Alt+Ctrl for LB and RB (for the extra bars), the game never sees LB and RB, and windows that use them (tabs, pages) cannot. Put that on a Steam Input action layer you can switch off, or only turn it on while playing.
