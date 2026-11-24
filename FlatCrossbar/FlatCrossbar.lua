@@ -311,7 +311,21 @@ local function targetLabel(target)
   return type(target) == "number" and ("button " .. target) or TARGETS[target][3]
 end
 
+-- The bar labels (LT, RT ...) and the game-button names are controller things: shown
+-- only while the controller binds are the live set, hidden in keyboard mode.
+local function updateLabels()
+  local mode = effectiveMode()
+  local pad = (mode == "controller" or mode == "both")
+  for _, list in ipairs(sideTexts) do
+    for _, text in ipairs(list) do text:SetShown(pad and db.helper and true or false) end
+  end
+  for _, slot in ipairs(reservedSlots) do
+    if slot.Label then slot.Label:SetShown(pad) end
+  end
+end
+
 local function applyBindings()
+  updateLabels()
   if InCombatLockdown() then
     pendingBindings = true
     return
@@ -719,7 +733,6 @@ local function layout()
   for g, gf in ipairs(groupFrames) do
     gf:SetSize(GROUP_FRAME_W, GROUP_FRAME_H)
     gf:SetScale(db.scale)
-    for _, text in ipairs(sideTexts[g]) do text:SetShown(db.helper and true or false) end
   end
   for i, btn in ipairs(buttons) do
     btn:ClearAllPoints()
@@ -733,6 +746,7 @@ local function layout()
   end
   container:SetScale(db.scale)
   layoutToolbar()
+  updateLabels()
 end
 
 -- The blue strip above a movable frame, shown while unlocked.
@@ -1238,6 +1252,7 @@ local function createFrames()
     end)
     mid:SetScript("OnLeave", function() GameTooltip:Hide() end)
     groupHandles[g] = mid
+    mid.title = title
     sideTexts[g] = { title }
   end
   for k = 1, 4 do
@@ -1792,9 +1807,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
     layoutToolbar()
   elseif cmd == "helper" then
     if arg == "on" then db.helper = true elseif arg == "off" then db.helper = false else db.helper = not db.helper end
-    for g = 1, #sideTexts do
-      for _, text in ipairs(sideTexts[g]) do text:SetShown(db.helper and true or false) end
-    end
+    updateLabels()
     print_("helper text " .. (db.helper and "on" or "off"))
   elseif cmd == "resetpos" then
     if InCombatLockdown() then return print_("can't do that in combat.") end

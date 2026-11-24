@@ -290,6 +290,11 @@ STYLE = 2
 events.__scripts.OnUpdate(events, 1)
 note('auto: pad binds applied after entering gamepad mode again: ' .. tostring(BINDS - inGamepad))
 try('/fcb mode controller', slash, 'mode controller')
+-- the bar labels follow the keybind set
+try('/fcb mode keyboard (labels)', slash, 'mode keyboard')
+note('labels in keyboard mode: ' .. tostring(G.FlatCrossbarGroup2Label.title:IsShown()))
+try('/fcb mode controller (labels)', slash, 'mode controller')
+note('labels in controller mode: ' .. tostring(G.FlatCrossbarGroup2Label.title:IsShown()))
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')
