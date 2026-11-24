@@ -70,6 +70,19 @@ local buttons = {}
 local container, header, modeButton, pageButton, bindButton, bindCapture
 local groupLabels, reservedSlots = {}, {}
 local buildError
+local securePaging = true
+
+-- Secure handler frames get SetFrameRef from their template; fall back to the
+-- global helper, and to out-of-combat paging if this client has neither.
+local function setFrameRef(handler, label, frame)
+  if handler.SetFrameRef then
+    handler:SetFrameRef(label, frame)
+  elseif _G.SecureHandlerSetFrameRef then
+    _G.SecureHandlerSetFrameRef(handler, label, frame)
+  else
+    securePaging = false
+  end
+end
 local wheel, wheelPageButton, wheelHeaderButton
 local slices = {}
 local bindOwner = CreateFrame("Frame")
@@ -827,7 +840,14 @@ local function createFrames()
       b:SetAttribute("action", self:GetAttribute("slot-" .. page .. "-" .. i))
     end
   ]], NUM_PAGES, NUM_BUTTONS))
-  pageButton:HookScript("PostClick", function(self)
+  pageButton:HookScript("PostClick", function(self, mouse)
+    if not securePaging then
+      -- No secure handler on this client: page out of combat only.
+      if not InCombatLockdown() then
+        applyPage(db.page + (mouse == "RightButton" and -1 or 1))
+      end
+      return
+    end
     local page = self:GetAttribute("page") or 1
     db.page = page
     self:SetText("Pg " .. page)
@@ -907,7 +927,7 @@ local function createFrames()
   end
   for i = 1, NUM_BUTTONS do
     buttons[i] = createButton(i)
-    pageButton:SetFrameRef("b" .. i, buttons[i])
+    setFrameRef(pageButton, "b" .. i, buttons[i])
   end
   createWheel()
   for page = 1, NUM_PAGES do
@@ -1040,7 +1060,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
     print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", layout: " .. tostring(db.layout))
-    print_("input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode())
+    print_("secure paging: " .. tostring(securePaging) .. "; input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode())
     if container then
       local parent = container:GetParent()
       print_(string.format("shown %s, visible %s, parent %s (shown %s), size %.0fx%.0f, scale %.2f, alpha %.2f, strata %s",
