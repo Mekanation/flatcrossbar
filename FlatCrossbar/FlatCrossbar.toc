@@ -1,0 +1,10 @@
+## Interface: 16001
+## Title: FlatCrossbar
+## Notes: Flattens the controller beta's crossbar into one plain action bar with separate keyboard and controller keybinds you can switch between. Type /fcb.
+## Author: WoW Forever C2XP
+## Version: 1.0.0
+## OptionalDeps: Blizzard_GamepadActionBars
+## SavedVariablesPerCharacter: FlatCrossbarDB
+
+FlatCrossbar.lua
+Bindings.xml

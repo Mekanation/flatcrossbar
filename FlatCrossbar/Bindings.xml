@@ -1,0 +1,104 @@
+<Bindings>
+	<Binding name="FLATCROSSBAR1" header="FLATCROSSBAR" category="ADDONS">
+		CLICK FlatCrossbarButton1:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR2" category="ADDONS">
+		CLICK FlatCrossbarButton2:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR3" category="ADDONS">
+		CLICK FlatCrossbarButton3:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR4" category="ADDONS">
+		CLICK FlatCrossbarButton4:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR5" category="ADDONS">
+		CLICK FlatCrossbarButton5:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR6" category="ADDONS">
+		CLICK FlatCrossbarButton6:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR7" category="ADDONS">
+		CLICK FlatCrossbarButton7:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR8" category="ADDONS">
+		CLICK FlatCrossbarButton8:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR9" category="ADDONS">
+		CLICK FlatCrossbarButton9:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR10" category="ADDONS">
+		CLICK FlatCrossbarButton10:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR11" category="ADDONS">
+		CLICK FlatCrossbarButton11:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR12" category="ADDONS">
+		CLICK FlatCrossbarButton12:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR13" category="ADDONS">
+		CLICK FlatCrossbarButton13:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR14" category="ADDONS">
+		CLICK FlatCrossbarButton14:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR15" category="ADDONS">
+		CLICK FlatCrossbarButton15:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR16" category="ADDONS">
+		CLICK FlatCrossbarButton16:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR17" category="ADDONS">
+		CLICK FlatCrossbarButton17:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR18" category="ADDONS">
+		CLICK FlatCrossbarButton18:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR19" category="ADDONS">
+		CLICK FlatCrossbarButton19:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR20" category="ADDONS">
+		CLICK FlatCrossbarButton20:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR21" category="ADDONS">
+		CLICK FlatCrossbarButton21:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR22" category="ADDONS">
+		CLICK FlatCrossbarButton22:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR23" category="ADDONS">
+		CLICK FlatCrossbarButton23:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR24" category="ADDONS">
+		CLICK FlatCrossbarButton24:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR25" category="ADDONS">
+		CLICK FlatCrossbarButton25:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR26" category="ADDONS">
+		CLICK FlatCrossbarButton26:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR27" category="ADDONS">
+		CLICK FlatCrossbarButton27:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR28" category="ADDONS">
+		CLICK FlatCrossbarButton28:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBARPAGENEXT" category="ADDONS">
+		CLICK FlatCrossbarPageButton:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBARPAGEPREV" category="ADDONS">
+		CLICK FlatCrossbarPageButton:RightButton
+	</Binding>
+	<Binding name="FLATCROSSBARTOGGLEMODE" category="ADDONS">
+		FlatCrossbar_ToggleMode()
+	</Binding>
+	<Binding name="FLATCROSSBARWHEEL" category="ADDONS">
+		CLICK FlatCrossbarWheelButton:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBARWHEELPAGENEXT" category="ADDONS">
+		CLICK FlatCrossbarWheelPageButton:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBARWHEELPAGEPREV" category="ADDONS">
+		CLICK FlatCrossbarWheelPageButton:RightButton
+	</Binding>
+</Bindings>
