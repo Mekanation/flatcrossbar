@@ -171,6 +171,14 @@ try('wheel press', function()
   for _, h in ipairs(wbtn.__hooks.PreClick or {}) do h(wbtn, 'LeftButton', true) end
 end)
 note('wheel open after press: ' .. tostring(wheel:IsShown()))
+local b3 = G.FlatCrossbarButton3
+local pageBefore = FlatCrossbarDB.wheelPage
+for _, h in ipairs(b3.__hooks.PreClick or {}) do h(b3, 'LeftButton', true) end
+note('wheel page after D-pad right: ' .. pageBefore .. ' -> ' .. FlatCrossbarDB.wheelPage .. ', button type while held: ' .. tostring(b3:GetAttribute('type')))
+for _, h in ipairs(b3.__hooks.PostClick or {}) do h(b3, 'LeftButton', true) end
+for _, h in ipairs(b3.__hooks.PreClick or {}) do h(b3, 'LeftButton', false) end
+for _, h in ipairs(b3.__hooks.PostClick or {}) do h(b3, 'LeftButton', false) end
+note('button type restored: ' .. tostring(b3:GetAttribute('type')) .. ', default wheel bind: ' .. tostring(FlatCrossbarDB.pad.wheel))
 try('wheel aim (stick up)', wheel.__scripts.OnUpdate, wheel)
 note('wheel button type/action after aim: ' .. tostring(wbtn:GetAttribute('type')) .. ' / ' .. tostring(wbtn:GetAttribute('action')))
 try('wheel release', function()

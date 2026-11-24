@@ -83,7 +83,7 @@ local yielding = false -- a bag, bank or vendor window is up: the pad binds step
 local wheel, wheelPageButton, wheelHeaderButton
 local slices = {}
 local bindOwner = CreateFrame("Frame")
-local pendingLayout, pendingBindings, pendingActions = false, false, false
+local pendingLayout, pendingBindings, pendingActions, pendingTypes = false, false, false, false
 local hoverTarget, forcedTarget
 local rangeState = {}
 
@@ -533,6 +533,37 @@ local function createButton(i)
     if InCombatLockdown() then return end
     local action = self:GetAttribute("action")
     if action then PlaceAction(action) end
+  end)
+  -- While the wheel is open (L3 held), the D-pad turns its pages: the button under
+  -- the bare D-pad left or right does nothing for that press. The wheel only opens
+  -- out of combat, so the button's action can be switched off and back here.
+  btn:HookScript("PreClick", function(self, _, down)
+    if InCombatLockdown() then return end
+    local key = db.pad[self.index]
+    local direction = (key == "PADDLEFT" and -1) or (key == "PADDRIGHT" and 1) or nil
+    if not direction then return end
+    local suppress
+    if down then
+      suppress = wheel and wheel:IsShown() and true or false
+      if suppress then FlatCrossbar_WheelPage(direction) end
+      self.wheelPress = suppress
+    else
+      suppress = self.wheelPress
+      self.wheelPress = nil
+    end
+    if suppress then
+      self:SetAttribute("type", nil)
+      self.restoreType = true
+    end
+  end)
+  btn:HookScript("PostClick", function(self)
+    if not self.restoreType then return end
+    if InCombatLockdown() then
+      pendingTypes = true
+      return
+    end
+    self.restoreType = nil
+    self:SetAttribute("type", "action")
   end)
   btn:HookScript("OnEnter", function(self)
     hoverTarget = self.index
@@ -1132,7 +1163,10 @@ local function seedReservedDefaults()
 end
 
 local function seedPadDefaults(from)
-  if not from then seedReservedDefaults() end
+  if not from then
+    seedReservedDefaults()
+    db.pad.wheel = "PADLSTICK" -- L3, pressed in
+  end
   for i = from or 1, NUM_BUTTONS do
     db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]]
   end
@@ -1294,6 +1328,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     end
     if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
     db.padSeeded = true
+    if not db.wheelSeeded then
+      -- Saves from before the wheel had a default: L3, unless it is already bound.
+      if db.pad.wheel == nil then db.pad.wheel = "PADLSTICK" end
+      db.wheelSeeded = true
+    end
     if not db.reservedSeeded then
       -- Saves from before the game's four buttons could be bound: their usual keys.
       for target, key in pairs(RESERVED_DEFAULT) do
@@ -1346,6 +1385,15 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     wheelHeaderButton:SetAttribute("type", nil)
     if pendingLayout then layout() end
     if pendingActions then applyActions() end
+    if pendingTypes then
+      pendingTypes = false
+      for _, btn in ipairs(buttons) do
+        if btn.restoreType then
+          btn.restoreType = nil
+          btn:SetAttribute("type", "action")
+        end
+      end
+    end
     if pendingBindings then applyBindings() end
   elseif event == "ACTION_RANGE_CHECK_UPDATE" then
     -- slot, isInRange, checksRange

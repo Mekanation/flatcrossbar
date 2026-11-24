@@ -111,3 +111,9 @@ The base bar's face buttons are the game's own: **Act** (dynamic action: interac
 Holding LB makes the game show its own page tracker. With `/fcb blizzard off` (the default) the addon hides the page tracker and the game's crossbar, and keeps them hidden if the game shows them again later. `/fcb blizzard on` leaves them alone.
 
 Not checked in the real client: that an override binding to `GAMEPADACTIONBUTTON5-8` runs the game's button, and that the page tracker is hidden by this.
+
+## The wheel on L3
+
+The wheel is bound to L3 (press the left stick in) by default: hold it to open the wheel, aim with the right stick, release to use the slice. While the wheel is open the D-pad turns its pages instead of using its buttons: left for the previous page, right for the next. It only opens out of combat. L3 stops doing whatever the game had on it while the controller binds are live. `/fcb bindto wheel` moves the wheel to another button, and `/fcb clear wheel` frees L3.
+
+Not checked in the real client: that L3 arrives as `PADLSTICK`, and that the D-pad press is swallowed cleanly while the wheel is open.
