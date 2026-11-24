@@ -131,11 +131,53 @@
 	<Binding name="FLATCROSSBAR44" category="ADDONS">
 		CLICK FlatCrossbarButton44:LeftButton
 	</Binding>
-	<Binding name="FLATCROSSBARPAGENEXT" category="ADDONS">
-		CLICK FlatCrossbarPageButton:LeftButton
+	<Binding name="FLATCROSSBAR45" category="ADDONS">
+		CLICK FlatCrossbarButton45:LeftButton
 	</Binding>
-	<Binding name="FLATCROSSBARPAGEPREV" category="ADDONS">
-		CLICK FlatCrossbarPageButton:RightButton
+	<Binding name="FLATCROSSBAR46" category="ADDONS">
+		CLICK FlatCrossbarButton46:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR47" category="ADDONS">
+		CLICK FlatCrossbarButton47:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR48" category="ADDONS">
+		CLICK FlatCrossbarButton48:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR49" category="ADDONS">
+		CLICK FlatCrossbarButton49:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR50" category="ADDONS">
+		CLICK FlatCrossbarButton50:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR51" category="ADDONS">
+		CLICK FlatCrossbarButton51:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR52" category="ADDONS">
+		CLICK FlatCrossbarButton52:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR53" category="ADDONS">
+		CLICK FlatCrossbarButton53:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR54" category="ADDONS">
+		CLICK FlatCrossbarButton54:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR55" category="ADDONS">
+		CLICK FlatCrossbarButton55:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR56" category="ADDONS">
+		CLICK FlatCrossbarButton56:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR57" category="ADDONS">
+		CLICK FlatCrossbarButton57:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR58" category="ADDONS">
+		CLICK FlatCrossbarButton58:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR59" category="ADDONS">
+		CLICK FlatCrossbarButton59:LeftButton
+	</Binding>
+	<Binding name="FLATCROSSBAR60" category="ADDONS">
+		CLICK FlatCrossbarButton60:LeftButton
 	</Binding>
 	<Binding name="FLATCROSSBARTOGGLEMODE" category="ADDONS">
 		FlatCrossbar_ToggleMode()

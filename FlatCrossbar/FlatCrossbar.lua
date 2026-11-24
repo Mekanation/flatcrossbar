@@ -3,8 +3,8 @@
 -- The crossbar (Blizzard_GamepadActionBars) holds its actions in "gamepad
 -- storage slots": 3 standard pages x 4 bars (top/left/right/bottom) x 8
 -- buttons, with the top bar's right-hand 4 reserved for UI actions, leaving
--- 28 usable buttons per page (pages 1-2 are paged here; page 3's left and
--- and right bars hold the two shoulder bars). Blizzard shows only one bar at a time and picks
+-- 28 usable buttons per page (page 1 is the main set; the LB, RB and double-press
+-- bars use pages 2 and 3). Blizzard shows only one bar at a time and picks
 -- it with the trigger modifiers. This addon shows all 28 of a page at once as
 -- ordinary buttons over the same storage slots, so whatever you set up on the
 -- crossbar shows up here, and the other way round.
@@ -26,9 +26,7 @@
 local ADDON = ...
 
 local MAIN_BUTTONS = 28 -- the four crossbar bars, paged
-local NUM_BUTTONS = 44 -- plus the two shoulder bars (LB, RB), 8 buttons each
-local NUM_PAGES = 2 -- pages the main bars cycle through
-local EXTRA_PAGE = 3 -- the shoulder bars live in this page's left and right bars
+local NUM_BUTTONS = 60 -- plus four bars of 8: LB, RB and the double-press LT and RT
 local BUTTON_SIZE = 36
 local SPACING = 3
 local HEADER_HEIGHT = 18
@@ -60,15 +58,13 @@ local DEFAULTS = {
   wheelScale = 1,
   locked = false,
   hideBlizzard = true,
-  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 200 },
+  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 250 },
 }
 
 BINDING_HEADER_FLATCROSSBAR = "FlatCrossbar"
 for i = 1, NUM_BUTTONS do
   _G["BINDING_NAME_FLATCROSSBAR" .. i] = "Crossbar button " .. i
 end
-BINDING_NAME_FLATCROSSBARPAGENEXT = "Next crossbar page"
-BINDING_NAME_FLATCROSSBARPAGEPREV = "Previous crossbar page"
 BINDING_NAME_FLATCROSSBARWHEEL = "Crossbar wheel (hold)"
 BINDING_NAME_FLATCROSSBARWHEELPAGENEXT = "Next wheel page"
 BINDING_NAME_FLATCROSSBARWHEELPAGEPREV = "Previous wheel page"
@@ -76,29 +72,16 @@ BINDING_NAME_FLATCROSSBARTOGGLEMODE = "Toggle keyboard / controller keybinds"
 
 local db
 local buttons = {}
-local container, header, modeButton, pageButton, bindButton, bindCapture
+local container, header, modeButton, bindButton, bindCapture
 local groupFrames, groupHandles, sideTexts, reservedSlots = {}, {}, {}, {}
 local toolbarHandle
 local layoutToolbar
 local buildError
 local yielding = false -- a bag, bank or vendor window is up: the pad binds step aside
-local securePaging = true
-
--- Secure handler frames get SetFrameRef from their template; fall back to the
--- global helper, and to out-of-combat paging if this client has neither.
-local function setFrameRef(handler, label, frame)
-  if handler.SetFrameRef then
-    handler:SetFrameRef(label, frame)
-  elseif _G.SecureHandlerSetFrameRef then
-    _G.SecureHandlerSetFrameRef(handler, label, frame)
-  else
-    securePaging = false
-  end
-end
 local wheel, wheelPageButton, wheelHeaderButton
 local slices = {}
 local bindOwner = CreateFrame("Frame")
-local pendingLayout, pendingBindings, pendingPage = false, false, nil
+local pendingLayout, pendingBindings, pendingActions = false, false, false
 local hoverTarget, forcedTarget
 local rangeState = {}
 
@@ -113,24 +96,40 @@ end
 local PAGE_UNIT_SLOT_IDS = {}
 for id = 1, 4 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 for id = 9, 32 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
--- The shoulder bars: 9-16 (left bar) and 17-24 (right bar), on EXTRA_PAGE.
-for id = 9, 24 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
+-- The page each button lives on. The main bars are page 1. The other four bars use
+-- the left, right and bottom bars of page 3 and the left bar of page 2.
+local BUTTON_PAGE = {}
+for i = 1, #PAGE_UNIT_SLOT_IDS do BUTTON_PAGE[i] = 1 end
+local function addExtraBar(page, firstId)
+  for id = firstId, firstId + 7 do
+    PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id
+    BUTTON_PAGE[#PAGE_UNIT_SLOT_IDS] = page
+  end
+end
+addExtraBar(3, 9) -- LB
+addExtraBar(3, 17) -- RB
+addExtraBar(3, 25) -- LT x2
+addExtraBar(2, 9) -- RT x2
 
 -- The crossbar's four bars are 8 buttons each (slots 1-4 on the D-pad, 5-8 on
 -- the face buttons) and are picked by the triggers held: none = top, LT = left,
 -- RT = right, LT+RT = bottom (PageUnit.lua). The groups layout draws each bar as
 -- a small 2x4 block under its trigger label.
 local GROUP_SIZE = 8
-local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LB", "RB" }
+local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LB", "RB", "LT x2", "RT x2" }
 -- The triggers reach the game as Shift (LT) and Ctrl (RT) when binding keys.
--- The shoulder bars are Alt (LB) and Alt+Ctrl (RB): Steam Input sends those for the
--- shoulder buttons, which are not modifiers by themselves.
-local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-" }
+-- The other four bars are not modifiers by themselves, so Steam Input sends: Alt for
+-- LB, Alt+Ctrl for RB, Alt+Shift for a double press of LT and Alt+Ctrl+Shift for RT.
+local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-", "ALT-SHIFT-", "ALT-CTRL-SHIFT-" }
 local GROUP_COLOR = {
   { 0.30, 0.75, 0.40 }, { 0.30, 0.55, 0.95 }, { 0.95, 0.60, 0.20 },
   { 0.70, 0.40, 0.90 }, { 0.25, 0.80, 0.80 }, { 0.95, 0.40, 0.60 },
+  { 0.90, 0.80, 0.25 }, { 0.85, 0.35, 0.35 },
 }
-local GROUP_HINT = { "no trigger", "hold LT", "hold RT", "hold LT + RT", "hold LB", "hold RB" }
+local GROUP_HINT = {
+  "no trigger", "hold LT", "hold RT", "hold LT + RT", "hold LB", "hold RB",
+  "double-press LT", "double-press RT",
+}
 local function colorCode(c)
   return string.format("|cff%02x%02x%02x", math.floor(c[1] * 255 + 0.5), math.floor(c[2] * 255 + 0.5), math.floor(c[3] * 255 + 0.5))
 end
@@ -201,7 +200,15 @@ local function shortKey(key)
     local out
     if mods:find("ALT%-") then
       -- the shoulder bars
-      out = mods:find("CTRL%-") and "RB+" or "LB+"
+      if mods:find("CTRL%-") and mods:find("SHIFT%-") then
+        out = "RT2+"
+      elseif mods:find("CTRL%-") then
+        out = "RB+"
+      elseif mods:find("SHIFT%-") then
+        out = "LT2+"
+      else
+        out = "LB+"
+      end
     else
       out = (mods:find("SHIFT%-") and "LT+" or "") .. (mods:find("CTRL%-") and "RT+" or "")
     end
@@ -226,8 +233,6 @@ end
 -- Bindable things besides the 28 buttons. Keys in db.kb / db.pad. The fourth
 -- field marks the controller-only ones (the wheel).
 local TARGETS = {
-  pageNext = { "FlatCrossbarPageButton", "LeftButton", "next page" },
-  pagePrev = { "FlatCrossbarPageButton", "RightButton", "previous page" },
   wheel = { "FlatCrossbarWheelButton", "LeftButton", "wheel (hold)", true },
   wheelNext = { "FlatCrossbarWheelPageButton", "LeftButton", "next wheel page", true },
   wheelPrev = { "FlatCrossbarWheelPageButton", "RightButton", "previous wheel page", true },
@@ -242,7 +247,7 @@ local RESERVED_TARGETS = { "dynamic", "inspect", "back", "jump" }
 local RESERVED_LABEL = { "Act", "Insp", "Back", "Jump" }
 local RESERVED_DEFAULT = { dynamic = "PAD3", inspect = "PAD4", back = "PAD2", jump = "PAD1" }
 local TARGET_ALIASES = {
-  pagenext = "pageNext", pageprev = "pagePrev", wheel = "wheel",
+  wheel = "wheel",
   wheelnext = "wheelNext", wheelprev = "wheelPrev",
   dynamic = "dynamic", inspect = "inspect", back = "back", jump = "jump",
 }
@@ -384,27 +389,19 @@ local function enableRangeChecks()
   end
 end
 
--- Pages -----------------------------------------------------------------------
+-- Actions ---------------------------------------------------------------------
 
--- Sets each button's action to the storage slot for the page. Combat-safe
--- paging goes through pageButton's secure snippet; this is the out-of-combat
--- path used at login and by /fcb page.
-local function applyPage(page)
+-- Points each button at its crossbar storage slot. Out of combat only: a secure
+-- button's action can't change in combat.
+local function applyActions()
   if InCombatLockdown() then
-    pendingPage = page
+    pendingActions = true
     return
   end
-  pendingPage = nil
-  page = math.max(1, math.min(NUM_PAGES, page))
-  db.page = page
-  pageButton:SetAttribute("page", page)
-  for i = 1, MAIN_BUTTONS do
-    buttons[i]:SetAttribute("action", storageSlot(page, PAGE_UNIT_SLOT_IDS[i]))
+  pendingActions = false
+  for i = 1, NUM_BUTTONS do
+    buttons[i]:SetAttribute("action", storageSlot(BUTTON_PAGE[i], PAGE_UNIT_SLOT_IDS[i]))
   end
-  for i = MAIN_BUTTONS + 1, NUM_BUTTONS do
-    buttons[i]:SetAttribute("action", storageSlot(EXTRA_PAGE, PAGE_UNIT_SLOT_IDS[i]))
-  end
-  pageButton:SetText("Pg " .. page)
   enableRangeChecks()
   updateAll()
 end
@@ -515,15 +512,17 @@ local HANDLE_HEIGHT = 12
 
 -- A scale that lets the six bars sit in one row on this screen.
 local function fitScale()
-  local total = #GROUP_LABEL * GROUP_FRAME_W + (#GROUP_LABEL - 1) * GROUP_GAP
+  local total = 4 * GROUP_FRAME_W + 3 * GROUP_GAP
   local avail = (UIParent:GetWidth() or total) - 40
   return math.max(0.5, math.min(1, math.floor(avail / total * 20) / 20))
 end
 
--- All bars in one row along the bottom, with room under them for their labels.
+-- The four crossbar bars in a row along the bottom, with room under them for their
+-- labels, and the other four in a second row above.
 local function groupDefaultPoint(g)
   local step = GROUP_FRAME_W + GROUP_GAP
-  return { "BOTTOM", "UIParent", "BOTTOM", (g - (#GROUP_LABEL + 1) / 2) * step, 64 }
+  local column = (g - 1) % 4 + 1
+  return { "BOTTOM", "UIParent", "BOTTOM", (column - 2.5) * step, g <= 4 and 64 or 168 }
 end
 
 local function setPoint(frame, p)
@@ -626,7 +625,7 @@ layoutToolbar = function()
   local showWheel = (mode == "controller" or mode == "both")
   local utility = not db.hideButtons
   local order = {
-    { modeButton, utility }, { pageButton, utility },
+    { modeButton, utility },
     { wheelHeaderButton, showWheel }, { wheelPageButton, showWheel },
     { bindButton, utility },
   }
@@ -924,55 +923,10 @@ local function createFrames()
   end)
   modeButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
-  -- Combat-safe paging: the click handler rewrites every button's action
-  -- inside the restricted environment.
-  pageButton = CreateFrame("Button", "FlatCrossbarPageButton", container, "SecureHandlerClickTemplate,UIPanelButtonTemplate")
-  pageButton:SetSize(48, HEADER_HEIGHT)
-  pageButton:SetPoint("LEFT", modeButton, "RIGHT", 4, 0)
-  pageButton:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-  pageButton:SetAttribute("page", 1)
-  pageButton:SetAttribute("_onclick", string.format([[
-    local pages = %d
-    local page = self:GetAttribute("page") or 1
-    if button == "RightButton" then
-      page = page - 1
-      if page < 1 then page = pages end
-    else
-      page = page + 1
-      if page > pages then page = 1 end
-    end
-    self:SetAttribute("page", page)
-    for i = 1, %d do
-      local b = self:GetFrameRef("b" .. i)
-      b:SetAttribute("action", self:GetAttribute("slot-" .. page .. "-" .. i))
-    end
-  ]], NUM_PAGES, MAIN_BUTTONS))
-  pageButton:HookScript("PostClick", function(self, mouse)
-    if not securePaging then
-      -- No secure handler on this client: page out of combat only.
-      if not InCombatLockdown() then
-        applyPage(db.page + (mouse == "RightButton" and -1 or 1))
-      end
-      return
-    end
-    local page = self:GetAttribute("page") or 1
-    db.page = page
-    self:SetText("Pg " .. page)
-    enableRangeChecks()
-    updateAll()
-  end)
-  pageButton:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:SetText("Crossbar page")
-    GameTooltip:AddLine("Left-click: next page. Right-click: previous.", 1, 1, 1)
-    GameTooltip:Show()
-  end)
-  pageButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
   wheelHeaderButton = CreateFrame("Button", "FlatCrossbarWheelButton", container, "SecureActionButtonTemplate,UIPanelButtonTemplate")
   wheelHeaderButton:SetSize(52, HEADER_HEIGHT)
   wheelHeaderButton:SetText("Wheel")
-  wheelHeaderButton:SetPoint("LEFT", pageButton, "RIGHT", 4, 0)
+  wheelHeaderButton:SetPoint("LEFT", modeButton, "RIGHT", 4, 0)
 
   wheelPageButton = CreateFrame("Button", "FlatCrossbarWheelPageButton", container, "UIPanelButtonTemplate")
   wheelPageButton:SetSize(36, HEADER_HEIGHT)
@@ -996,7 +950,6 @@ local function createFrames()
       GameTooltip:Hide()
     end)
   end
-  bindTarget(pageButton, "pageNext")
   bindTarget(wheelHeaderButton, "wheel", { "Wheel", "Controller only. Bind a controller button to hold: aim, then release to use." })
   bindTarget(wheelPageButton, "wheelNext", { "Wheel page", "Left-click: next. Right-click: previous. Not in combat." })
 
@@ -1071,14 +1024,8 @@ local function createFrames()
   end
   for i = 1, NUM_BUTTONS do
     buttons[i] = createButton(i)
-    setFrameRef(pageButton, "b" .. i, buttons[i])
   end
   createWheel()
-  for page = 1, NUM_PAGES do
-    for i = 1, MAIN_BUTTONS do
-      pageButton:SetAttribute("slot-" .. page .. "-" .. i, storageSlot(page, PAGE_UNIT_SLOT_IDS[i]))
-    end
-  end
 end
 
 -- Bound in the Key Bindings screen: plain Lua, so it works whatever is shown.
@@ -1194,10 +1141,15 @@ events:RegisterEvent("ADDON_LOADED")
 -- Fading the other bars --------------------------------------------------------
 
 -- Which bar the held modifiers pick: 1 none, 2 LT (Shift), 3 RT (Ctrl), 4 both,
--- 5 LB (Alt), 6 RB (Alt+Ctrl).
+-- 5 LB (Alt), 6 RB (Alt+Ctrl), 7 LT x2 (Alt+Shift), 8 RT x2 (Alt+Ctrl+Shift).
 local function activeGroup()
   local shift, ctrl, alt = IsShiftKeyDown(), IsControlKeyDown(), IsAltKeyDown()
-  if alt then return ctrl and 6 or 5 end
+  if alt then
+    if ctrl and shift then return 8 end -- RT x2
+    if ctrl then return 6 end -- RB
+    if shift then return 7 end -- LT x2
+    return 5 -- LB
+  end
   if shift and ctrl then return 4 end
   if shift then return 2 end
   if ctrl then return 3 end
@@ -1243,11 +1195,11 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     FlatCrossbarDB = FlatCrossbarDB or {}
     db = FlatCrossbarDB
     copyDefaults(db, DEFAULTS)
-    if (db.layoutVersion or 0) < 2 then
-      -- The bars are one row each now: the old positions would overlap.
-      db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 200 }
+    if (db.layoutVersion or 0) < 3 then
+      -- The bars were rearranged: the old positions would overlap.
+      db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 250 }
       db.groupPoints = {}
-      db.layoutVersion = 2
+      db.layoutVersion = 3
     end
     if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
     db.padSeeded = true
@@ -1258,15 +1210,12 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
       end
       db.reservedSeeded = true
     end
-    if (db.extraSeedVersion or 0) < 2 then
+    if (db.extraSeedVersion or 0) < 3 then
       -- Saves from before the shoulder bars: give the buttons without a bind their defaults.
       for i = MAIN_BUTTONS + 1, NUM_BUTTONS do
         if db.pad[i] == nil then db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]] end
       end
-      db.extraSeedVersion = 2
-    end
-    for i = NUM_BUTTONS + 1, NUM_BUTTONS + 8 do
-      db.pad[i] = nil -- the LB+RB bar's old binds
+      db.extraSeedVersion = 3
     end
     local built, err = pcall(function()
       createFrames()
@@ -1296,7 +1245,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
       pcall(InputUtil.RegisterMKBInit, subscriber, onInterfaceTransition)
     end
   elseif event == "PLAYER_ENTERING_WORLD" then
-    applyPage(db.page)
+    applyActions()
     applyBindings()
     applyBlizzardVisibility()
     if db.autoMacros then ensureMacros() end
@@ -1305,7 +1254,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
   elseif event == "PLAYER_REGEN_ENABLED" then
     wheelHeaderButton:SetAttribute("type", nil)
     if pendingLayout then layout() end
-    if pendingPage then applyPage(pendingPage) end
+    if pendingActions then applyActions() end
     if pendingBindings then applyBindings() end
   elseif event == "ACTION_RANGE_CHECK_UPDATE" then
     -- slot, isInRange, checksRange
@@ -1325,9 +1274,8 @@ local HELP = {
   "/fcb toggle - switch keyboard / controller",
   "/fcb bind - hover a button, press a key or controller button",
   "/fcb clear [n|all] - clear the keybinds of button n (or all)",
-  "/fcb page 1-2 - show that crossbar page",
   "/fcb wheel - preview the wheel   /fcb wheelpage N   /fcb wheelscale N",
-  "/fcb bindto wheel|wheelnext|wheelprev|pagenext|pageprev|dynamic|inspect|back|jump - bind that, then press a key",
+  "/fcb bindto wheel|wheelnext|wheelprev|dynamic|inspect|back|jump - bind that, then press a key",
   "/fcb helper [on|off] - the combo text beside each bar (LT +, RT + ...)",
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
@@ -1351,7 +1299,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
     print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", groups: " .. #groupFrames .. ", locked: " .. tostring(db.locked))
-    print_("secure paging: " .. tostring(securePaging) .. "; input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode() .. ", stepping aside: " .. tostring(yielding))
+    print_("input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode() .. ", stepping aside: " .. tostring(yielding))
     if container then
       local parent = container:GetParent()
       print_(string.format("shown %s, visible %s, parent %s (shown %s), size %.0fx%.0f, scale %.2f, alpha %.2f, strata %s",
@@ -1378,7 +1326,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
     if bindCapture:IsShown() then stopBindMode() else startBindMode() end
   elseif cmd == "bindto" then
     local target = TARGET_ALIASES[arg]
-    if not target then return print_("targets: wheel, wheelnext, wheelprev, pagenext, pageprev, dynamic, inspect, back, jump") end
+    if not target then return print_("targets: wheel, wheelnext, wheelprev, dynamic, inspect, back, jump") end
     if InCombatLockdown() then return print_("can't change keybinds in combat.") end
     forcedTarget = target
     bindCapture:Show()
@@ -1415,9 +1363,6 @@ SlashCmdList.FLATCROSSBAR = function(input)
       return print_("/fcb clear <1-" .. NUM_BUTTONS .. "|all>")
     end
     applyBindings()
-  elseif cmd == "page" then
-    local n = tonumber(arg)
-    if n then applyPage(n) else print_("/fcb page 1-" .. NUM_PAGES) end
   elseif cmd == "yield" then
     local sub_, name = input:match("^%s*%S*%s*(%S*)%s*(.-)%s*$")
     sub_ = sub_:lower()
@@ -1483,7 +1428,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
     print_("helper text " .. (db.helper and "on" or "off"))
   elseif cmd == "resetpos" then
     if InCombatLockdown() then return print_("can't do that in combat.") end
-    db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 200 }
+    db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 250 }
     db.groupPoints = {}
     restorePosition()
   elseif cmd == "blizzard" then

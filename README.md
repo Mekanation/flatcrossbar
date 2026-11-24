@@ -53,7 +53,7 @@ addon's own logic, not game behaviour.
 
 ## Layout
 
-Each of the crossbar's bars is a single row of 8 buttons in its own panel with a coloured edge: Base, LT, RT and LT+RT, plus LB and RB for the shoulder bars. All six sit in one row along the bottom, and the scale is set on first run so they fit the screen (`/fcb scale auto` redoes it). Under each bar a coloured label says what to hold ("LT", "hold LT"). The first four buttons of a bar are the D-pad and the last four are the face buttons. The base bar's face buttons are the game's own (see below). A small toolbar above holds the keyboard/controller toggle, page, wheel and bind buttons.
+Each of the crossbar's bars is a single row of 8 buttons in its own panel with a coloured edge: Base, LT, RT and LT+RT, plus LB, RB, LT x2 and RT x2 in a second row above. The scale is set on first run so a row fits the screen (`/fcb scale auto` redoes it). Under each bar a coloured label says what to hold ("LT", "hold LT"). The first four buttons of a bar are the D-pad and the last four are the face buttons. The base bar's face buttons are the game's own (see below). A small toolbar above holds the keyboard/controller toggle, wheel and bind buttons.
 
 While you hold LT, RT, LB or RB (as Shift, Ctrl or Alt) in controller mode, the other bars fade so the active one stands out. `/fcb fade off` turns that off; `/fcb fade 0.5` sets how dim they get.
 
@@ -61,23 +61,30 @@ On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for
 
 - `/fcb unlock` shows a coloured drag handle above each bar and the toolbar; drag them separately. `/fcb lock` hides the handles.
 - `/fcb helper [on|off]` shows or hides the labels under each bar.
-- `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle, Pg and Bind buttons.
+- `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle and Bind buttons.
 - `/fcb resetpos` puts the bars and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.
 
-## Shoulder bars
+## The other four bars: LB, RB and double-press LT and RT
 
-Two more blocks, **LB** and **RB**, sit above the LT and RT blocks with 8 buttons each. They are bound under Alt (LB) and Alt+Ctrl (RB), so they work in combat. A shoulder button is not a modifier by itself, so Steam Input has to send those:
+Four more bars, **LB**, **RB**, **LT x2** and **RT x2**, make up a second row above the first four. A shoulder button or a double press is not a modifier by itself, so Steam Input has to send one for each:
 
-1. Left bumper: output `Alt` while held.
-2. Right bumper: output `Alt` and `Ctrl` while held.
-3. Keep the triggers as Shift (LT) and Ctrl (RT).
+| Bar | Hold | Steam Input outputs |
+| --- | --- | --- |
+| LB | left bumper | `Alt` |
+| RB | right bumper | `Alt` + `Ctrl` |
+| LT x2 | double-press left trigger | `Alt` + `Shift` |
+| RT x2 | double-press right trigger | `Alt` + `Ctrl` + `Shift` |
 
-Don't hold LT or RT together with a bumper. Alt+Ctrl is both "RB" and "RT with LB", so they would trigger the same bar. Any button can be rebound with `/fcb bind` if you pick other outputs.
+Keep the single press of the triggers as Shift (LT) and Ctrl (RT).
 
-Their actions are stored in page 3's left and right crossbar bars, so paging cycles pages 1-2 only. The page-3 buttons still show in the game's crossbar editor.
+**Both triggers need their analog output turned off** in Steam Input, or the double-press and other activator options are not offered for them. Set each trigger to a digital (button) output first.
 
-Not checked in the real client: that Alt and Alt+Ctrl are free in the game's controller mode.
+Don't hold LT or RT together with a bumper: the combinations overlap (Alt+Shift is both "LT x2" and "LB with LT"), so the same bar would fire. Any button can be rebound with `/fcb bind` if you pick other outputs.
+
+There is no paging any more: the crossbar has 84 usable slots (3 pages of 28), so the main bars use page 1 and these four bars use the rest: LB, RB and LT x2 on page 3 and RT x2 on page 2. Actions you put on the old page 2 will show up on the RT x2 bar's left row.
+
+Not checked in the real client: that Alt, Alt+Shift and Alt+Ctrl+Shift are free in the game's controller mode.
 
 ## Tab-target macros
 
