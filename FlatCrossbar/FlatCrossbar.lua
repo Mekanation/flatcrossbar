@@ -79,7 +79,7 @@ local buttons = {}
 local container, header, modeButton, bindButton, bindCapture
 local groupFrames, groupHandles, sideTexts, reservedSlots = {}, {}, {}, {}
 local toolbarHandle
-local layoutToolbar
+local layoutToolbar, relayout
 local buildError
 local wheelDpad = false -- the wheel is open: D-pad left/right turn its pages
 local yielding = false -- a bag, bank or vendor window is up: the pad binds step aside
@@ -373,6 +373,7 @@ local function applyBindings()
   if modeButton then modeButton:SetText(MODE_LABEL[db.mode]) end
 
   layoutToolbar()
+  if relayout then relayout() end -- the gap in each bar follows the keybind set
   if wheelDpad and wheel and wheel:IsShown() then
     SetOverrideBindingClick(bindOwner, true, "PADDLEFT", "FlatCrossbarButton1", "LeftButton")
     SetOverrideBindingClick(bindOwner, true, "PADDRIGHT", "FlatCrossbarButton3", "LeftButton")
@@ -718,10 +719,17 @@ local function restorePosition()
   end
 end
 
+-- The gap with the label shows while the controller binds are live, or while unlocked
+-- (the label is the drag point). In keyboard mode, locked, the eight buttons sit together.
+local function gapOpen()
+  local mode = effectiveMode()
+  return mode == "controller" or mode == "both" or not db.locked
+end
+
 -- Where a bar's slot sits in its row: the D-pad four, the label's gap, the face four.
 local function slotX(slot)
   local step = BUTTON_SIZE + SPACING
-  return (slot - 1) * step + (slot > 4 and MID_GAP or 0)
+  return (slot - 1) * step + (slot > 4 and gapOpen() and MID_GAP or 0)
 end
 
 local function layout()
@@ -731,7 +739,7 @@ local function layout()
   end
   pendingLayout = false
   for g, gf in ipairs(groupFrames) do
-    gf:SetSize(GROUP_FRAME_W, GROUP_FRAME_H)
+    gf:SetSize(gapOpen() and GROUP_FRAME_W or GROUP_FRAME_W - MID_GAP, GROUP_FRAME_H)
     gf:SetScale(db.scale)
   end
   for i, btn in ipairs(buttons) do
@@ -744,10 +752,12 @@ local function layout()
     slot:ClearAllPoints()
     slot:SetPoint("TOPLEFT", groupFrames[1], "TOPLEFT", slotX(4 + k), 0)
   end
+  for _, mid in ipairs(groupHandles) do mid:SetShown(gapOpen()) end
   container:SetScale(db.scale)
   layoutToolbar()
   updateLabels()
 end
+relayout = layout
 
 -- The blue strip above a movable frame, shown while unlocked.
 local function makeHandle(frame, text, onMoved, color)
@@ -1800,6 +1810,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
   elseif cmd == "lock" or cmd == "unlock" then
     db.locked = (cmd == "lock")
     applyLock()
+    layout() -- the gap closes when locked in keyboard mode, and opens when unlocked
     print_(db.locked and "locked" or "unlocked: drag the label in the middle of a bar to move it")
   elseif cmd == "hidebuttons" or cmd == "showbuttons" then
     if InCombatLockdown() then return print_("can't do that in combat.") end

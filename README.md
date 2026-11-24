@@ -62,6 +62,7 @@ The four crossbar bars (Base, LT, RT, LT+RT) are pressed by the game's own cross
 - `/fcb unlock` lights up the label in the middle of each bar so you can drag it, and shows the toolbar's strip. `/fcb lock` turns both off.
 - While you drag, a bar snaps to the others and the toolbar: flush against a side, or lined up with an edge, once it is within a few pixels. Hold Ctrl while dragging to skip it once, or turn it off with `/fcb snap off` (`/fcb snap on` brings it back).
 - `/fcb helper [on|off]` shows or hides the labels (the drag area stays).
+- In keyboard mode the gap and its label close up so the eight buttons sit together (once the bars are locked; unlocked, the gap stays open because the label is what you drag).
 - `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle and Bind buttons.
 - `/fcb resetpos` puts the bars and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.
@@ -103,6 +104,8 @@ The two addons share no frame names, slash commands or globals (`/bp` and `/bagp
 One conflict that is not fixable in the addon: the shoulder bars need Steam Input to send Alt for LB and Alt+Ctrl for RB, so the game never sees LB/RB while that is on, and BagPad's LB (compare gear) and RB (DataPad) will not work. Either turn that Steam Input layer off while using BagPad, or put it on an action layer you switch to.
 
 ## The game's own four buttons
+
+To give one of them another button: `/fcb bindto jump` (or `dynamic`, `inspect`, `back`) and press the new controller button, or `/fcb bind`, hover the slot and press it. The new button works in addition to the game's own one; `/fcb clear jump` removes it again.
 
 The base bar's face buttons are the game's own: **Act** (dynamic action: interact or attack), **Insp** (inspect: the target menu), **Back** (cancel cast, clear target) and **Jump**. They are the game's hidden bindings `GAMEPADACTIONBUTTON5-8`, and they show as dim labelled slots in the Base block. They are bound like the other buttons, to controller buttons only:
 
