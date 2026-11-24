@@ -396,39 +396,71 @@ local function nativeSpecialIcon(k)
   return ok and icon or nil
 end
 
-local function copyIcon(destination, source)
-  local atlas = source:GetAtlas()
-  if atlas then
-    destination:SetAtlas(atlas)
-    return true
+-- What the game's button shows now, as something we can compare and copy.
+local function readSpecial(k)
+  local source = nativeSpecialIcon(k)
+  if source and source:IsShown() then
+    local atlas = source:GetAtlas()
+    if atlas then return { key = atlas, atlas = atlas } end
+    local texture = source:GetTexture()
+    if texture then
+      local coords = { source:GetTexCoord() }
+      return { key = tostring(texture) .. ":" .. table.concat(coords, ","), texture = texture, coords = coords }
+    end
   end
-  local texture = source:GetTexture()
-  if not texture then return false end
-  destination:SetTexture(texture)
-  destination:SetTexCoord(source:GetTexCoord())
-  return true
+  local fallback = SPECIAL_FALLBACK[k]
+  return { key = fallback.atlas or fallback.texture, atlas = fallback.atlas, texture = fallback.texture }
+end
+
+local specialKey = {} -- the picture each slot has now, so an unchanged one is not set again
+
+local function updateSpecialIcon(k)
+  local slot = reservedSlots[k]
+  if not (slot and slot.Art and db) then return end
+  local mode = effectiveMode()
+  local pad = (mode == "controller" or mode == "both")
+  local ok, picture = pcall(readSpecial, k)
+  if ok and specialKey[k] ~= picture.key then
+    specialKey[k] = picture.key
+    if picture.atlas then
+      slot.Art:SetAtlas(picture.atlas)
+    else
+      slot.Art:SetTexture(picture.texture)
+      if picture.coords then slot.Art:SetTexCoord(unpack(picture.coords)) else slot.Art:SetTexCoord(0, 1, 0, 1) end
+    end
+  elseif not ok then
+    specialKey[k] = nil
+  end
+  slot.Art:SetShown(ok)
+  slot.Label:SetShown(pad and not ok) -- the name stands in when no icon could be had
 end
 
 updateSpecialIcons = function()
-  if not db then return end
-  local mode = effectiveMode()
-  local pad = (mode == "controller" or mode == "both")
-  for k, slot in ipairs(reservedSlots) do
-    if slot.Art then
-      local shown = pcall(function()
-        local source = nativeSpecialIcon(k)
-        if source and source:IsShown() and copyIcon(slot.Art, source) then return end
-        local fallback = SPECIAL_FALLBACK[k]
-        if fallback.atlas then slot.Art:SetAtlas(fallback.atlas) else slot.Art:SetTexture(fallback.texture) end
-      end)
-      slot.Art:SetShown(shown)
-      slot.Label:SetShown(pad and not shown) -- the name stands in when no icon could be had
+  for k = 1, #reservedSlots do updateSpecialIcon(k) end
+end
+
+-- No polling: the game redraws these two when something changes (a new soft target,
+-- target, combat, equipment...), so a hook on its own update functions follows it.
+-- The inspect one changes with the target and raid markers, which we hear about as events.
+local specialHooked = false
+
+local function hookSpecialIcons()
+  if specialHooked then return end
+  local frame = _G.GamepadMainActionBarFrame
+  if type(frame) ~= "table" then return end
+  local ok = pcall(function()
+    if type(frame.UpdateInteractIcons) ~= "function" then error("not ready") end
+    hooksecurefunc(frame, "UpdateInteractIcons", function() updateSpecialIcon(1) end)
+    if type(frame.UpdateBackIcons) == "function" then
+      hooksecurefunc(frame, "UpdateBackIcons", function() updateSpecialIcon(3) end)
     end
-  end
+  end)
+  if ok then specialHooked = true end
 end
 
 local function applyBindings()
   updateLabels()
+  updateSpecialIcons()
   if InCombatLockdown() then
     pendingBindings = true
     return
@@ -593,7 +625,6 @@ local function updateAll()
     if buttons[i] then updateButton(buttons[i]) end
   end
   if updateWheel then updateWheel() end
-  if updateSpecialIcons then updateSpecialIcons() end
 end
 
 local function enableRangeChecks()
@@ -1806,7 +1837,7 @@ events:SetScript("OnUpdate", function(_, elapsed)
   yieldElapsed = 0
   -- The crossbar frame can be built or shown after login; keep it hidden.
   if db.hideBlizzard then applyBlizzardVisibility() end
-  updateSpecialIcons()
+  if not specialHooked then hookSpecialIcons() end -- the game's bar may load after us
   -- Auto follows the game going in and out of gamepad mode.
   local gamepad = gamepadUIActive()
   if gamepad ~= lastGamepad then
@@ -1821,7 +1852,9 @@ events:SetScript("OnUpdate", function(_, elapsed)
 end)
 
 events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
+  if db and (event == "PLAYER_TARGET_CHANGED" or event == "RAID_TARGET_UPDATE") then updateSpecialIcons() end
   if event == "ADDON_LOADED" then
+    if arg1 == "Blizzard_GamepadActionBars" then hookSpecialIcons() end
     if arg1 ~= ADDON then return end
     FlatCrossbarDB = FlatCrossbarDB or {}
     FlatCrossbarAccountDB = FlatCrossbarAccountDB or {}
@@ -1882,7 +1915,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
       "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "ACTIONBAR_SLOT_CHANGED",
       "ACTIONBAR_UPDATE_COOLDOWN", "ACTIONBAR_UPDATE_USABLE", "ACTIONBAR_UPDATE_STATE",
       "SPELL_UPDATE_COOLDOWN", "SPELL_UPDATE_CHARGES", "ACTION_RANGE_CHECK_UPDATE",
-      "PLAYER_TARGET_CHANGED", "GAME_PAD_ACTIVE_CHANGED",
+      "PLAYER_TARGET_CHANGED", "RAID_TARGET_UPDATE", "GAME_PAD_ACTIVE_CHANGED",
       "BAG_UPDATE_DELAYED", "PLAYER_SPECIALIZATION_CHANGED",
     }) do
       pcall(events.RegisterEvent, events, e)
@@ -1895,6 +1928,8 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     end
   elseif event == "PLAYER_ENTERING_WORLD" then
     applyActions()
+    hookSpecialIcons()
+    updateSpecialIcons()
     if db.wheelSavedCamera and not (wheel and wheel:IsShown()) then suspendCamera(false) end -- left at 0 by a session that ended badly
     applyBindings()
     applyBlizzardVisibility()

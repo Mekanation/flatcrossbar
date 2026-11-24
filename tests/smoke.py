@@ -52,7 +52,7 @@ function Stub.CreateMaskTexture(self) return newStub('Mask') end
 function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
-function Stub.SetAtlas(self, atlas) rawset(self, '__atlas', atlas) end
+function Stub.SetAtlas(self, atlas) rawset(self, '__atlas', atlas); rawset(self, '__atlasCalls', (rawget(self, '__atlasCalls') or 0) + 1) end
 function Stub.SetCooldownFromDurationObject(self, d) rawset(self, '__fromDuration', true) end
 function Stub.IsVisible(self) return self.__shown end
 TIME = 0
@@ -96,6 +96,8 @@ PickupAction = function() end
 PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
 BINDS = 0
+HOOKS = {}
+hooksecurefunc = function(object, name, fn) HOOKS[name] = fn end
 GetBindingAction = function(k) return 'ACTION_' .. k end
 C_Timer = { After = function() end }
 STYLE = 1
@@ -386,9 +388,17 @@ GamepadMainActionBarFrame.PageUnit = { actionBars = { topBar = { Right = {
   ActionButton3 = { SpecialActionIcon = fakeIcon('native-back') }, ActionButton4 = { SpecialActionIcon = fakeIcon('native-jump') } } } } }
 try('/fcb mode controller (special icons)', slash, 'mode controller')
 events.__scripts.OnUpdate(events, 1)
+note('hooks installed: ' .. tostring(HOOKS.UpdateInteractIcons ~= nil) .. ' ' .. tostring(HOOKS.UpdateBackIcons ~= nil))
+fire('PLAYER_TARGET_CHANGED')
 note('game button icons (native): ' .. tostring(rawget(G.FlatCrossbarReserved1.Art, '__atlas')) .. ' ' .. tostring(rawget(G.FlatCrossbarReserved4.Art, '__atlas')))
+-- the game redraws the dynamic icon: the hook picks it up, and an unchanged picture is not set again
+rawset(G.FlatCrossbarReserved1.Art, '__atlasCalls', 0)
+GamepadMainActionBarFrame.PageUnit.actionBars.topBar.Right.ActionButton1.SpecialActionIcon = fakeIcon('native-attack')
+HOOKS.UpdateInteractIcons()
+HOOKS.UpdateInteractIcons()
+note('after the game changed the dynamic icon: ' .. tostring(rawget(G.FlatCrossbarReserved1.Art, '__atlas')) .. ', set ' .. tostring(rawget(G.FlatCrossbarReserved1.Art, '__atlasCalls')) .. ' time(s) for two updates')
 GamepadMainActionBarFrame.PageUnit = nil
-events.__scripts.OnUpdate(events, 1)
+fire('PLAYER_TARGET_CHANGED')
 note('game button icons (fallback): ' .. tostring(rawget(G.FlatCrossbarReserved2.Art, '__atlas')) .. ' ' .. tostring(rawget(G.FlatCrossbarReserved4.Art, '__atlas')))
 GamepadMainActionBarFrame.PageUnit = oldUnit
 try('/fcb padreset', slash, 'padreset')
