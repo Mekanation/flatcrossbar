@@ -530,14 +530,45 @@ end
 
 -- Button display --------------------------------------------------------------
 
--- In combat the game can hand back cooldown numbers as secret values, which code like
--- this cannot pass to SetCooldown (and Cooldown:Clear is a protected function there). The
--- ordinary path is tried first; if it fails, the cooldown is set from the duration
--- objects the game also offers, which are not secret.
+-- Cooldowns. In combat the game can hand back cooldown numbers as secret values, which
+-- code like this cannot pass to SetCooldown, and the call does not even complain: the
+-- swipe just never appears. What does work, and what other bar addons (EllesmereUI)
+-- do, is to read the one flag that is never secret (isActive) and hand the cooldown
+-- frame a duration object, which carries the timing without exposing it. The plain call
+-- is kept for when the game does not offer duration objects.
 local cooldownError
+local cooldownPath = "none"
 
 local function clearCooldown(cooldown)
-  if not pcall(cooldown.SetCooldown, cooldown, 0, 0) then pcall(cooldown.Clear, cooldown) end
+  if not pcall(cooldown.Clear, cooldown) then pcall(cooldown.SetCooldown, cooldown, 0, 0) end
+end
+
+local function durationCooldown(btn, action)
+  local api = C_ActionBar
+  if not (api.GetActionCooldownDuration and btn.cooldown.SetCooldownFromDurationObject) then return false end
+  local cooldown = api.GetActionCooldown(action)
+  local charges = api.GetActionCharges and api.GetActionCharges(action)
+  local loc = api.GetActionLossOfControlCooldownInfo and api.GetActionLossOfControlCooldownInfo(action)
+  local locActive = loc and loc.isActive and api.GetActionLossOfControlCooldownDuration ~= nil
+  local replace = locActive and loc.shouldReplaceNormalCooldown
+  if issecretvalue and issecretvalue(replace) then replace = false end
+
+  if locActive then
+    btn.locCooldown:SetCooldownFromDurationObject(api.GetActionLossOfControlCooldownDuration(action))
+  else
+    clearCooldown(btn.locCooldown)
+  end
+  if charges and charges.isActive and not replace and api.GetActionChargeDuration then
+    btn.chargeCooldown:SetCooldownFromDurationObject(api.GetActionChargeDuration(action))
+  else
+    clearCooldown(btn.chargeCooldown)
+  end
+  if cooldown and cooldown.isActive and not replace then
+    btn.cooldown:SetCooldownFromDurationObject(api.GetActionCooldownDuration(action))
+  else
+    clearCooldown(btn.cooldown)
+  end
+  return true
 end
 
 local function plainCooldown(btn, action)
@@ -555,27 +586,23 @@ local function plainCooldown(btn, action)
   end
 end
 
-local function durationCooldown(btn, action)
-  local api = C_ActionBar
-  if not (api.GetActionCooldownDuration and btn.cooldown.SetCooldownFromDurationObject) then return false end
-  btn.cooldown:SetCooldownFromDurationObject(api.GetActionCooldownDuration(action), true)
-  if api.GetActionChargeDuration then
-    btn.chargeCooldown:SetCooldownFromDurationObject(api.GetActionChargeDuration(action), true)
-  end
-  if api.GetActionLossOfControlCooldownDuration then
-    btn.locCooldown:SetCooldownFromDurationObject(api.GetActionLossOfControlCooldownDuration(action), true)
-  end
-  return true
-end
-
 local function updateCooldown(btn, action)
-  local ok, err = pcall(plainCooldown, btn, action)
-  if ok then return end
-  if not cooldownError then
-    cooldownError = tostring(err)
-    print_("cooldowns: the usual call failed (" .. cooldownError .. "); using the game's duration objects instead.")
+  local ok, done = pcall(durationCooldown, btn, action)
+  if ok and done then
+    cooldownPath = "duration objects"
+    return
   end
-  if not pcall(durationCooldown, btn, action) then clearCooldown(btn.cooldown) end
+  if not ok and not cooldownError then
+    cooldownError = tostring(done)
+    print_("cooldowns: the duration-object call failed (" .. cooldownError .. "); using the plain one.")
+  end
+  local plainOk, err = pcall(plainCooldown, btn, action)
+  if plainOk then
+    cooldownPath = "plain call"
+  else
+    if not cooldownError then cooldownError = tostring(err) end
+    clearCooldown(btn.cooldown)
+  end
 end
 
 local function updateButton(btn, actionOverride)
@@ -625,6 +652,25 @@ local function updateAll()
     if buttons[i] then updateButton(buttons[i]) end
   end
   if updateWheel then updateWheel() end
+end
+
+local cooldownRefreshPending = false
+
+local function refreshCooldowns()
+  for i = 1, NUM_BUTTONS do
+    local btn = buttons[i]
+    local action = btn and btn:GetAttribute("action")
+    if action and C_ActionBar.HasAction(action) then updateCooldown(btn, action) end
+  end
+end
+
+local function scheduleCooldownRefresh()
+  if cooldownRefreshPending or not (C_Timer and C_Timer.After) then return end
+  cooldownRefreshPending = true
+  C_Timer.After(0.1, function()
+    cooldownRefreshPending = false
+    refreshCooldowns()
+  end)
 end
 
 local function enableRangeChecks()
@@ -1852,6 +1898,9 @@ events:SetScript("OnUpdate", function(_, elapsed)
 end)
 
 events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
+  if db and (event == "ACTIONBAR_UPDATE_COOLDOWN" or event == "SPELL_UPDATE_COOLDOWN" or event == "SPELL_UPDATE_CHARGES") then
+    scheduleCooldownRefresh()
+  end
   if db and (event == "PLAYER_TARGET_CHANGED" or event == "RAID_TARGET_UPDATE") then updateSpecialIcons() end
   if event == "ADDON_LOADED" then
     if arg1 == "Blizzard_GamepadActionBars" then hookSpecialIcons() end
@@ -2003,7 +2052,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
       local ok, bound = pcall(GetBindingAction, key, true)
       print_(key .. " is bound to: " .. tostring(ok and bound ~= "" and bound or "(nothing)"))
     end
-    print_("cooldown fallback in use: " .. tostring(cooldownError ~= nil) .. (cooldownError and (" (" .. cooldownError .. ")") or ""))
+    print_("cooldowns use: " .. cooldownPath .. (cooldownError and (", last error: " .. cooldownError) or ""))
     print_("the game says bar " .. tostring(gameActiveBar()) .. " is in use (1 Base, 2 LT, 3 RT, 4 LT+RT; nil = it can't tell)")
     print_("wheel: action bars " .. table.concat(db.wheelBars, ", ") .. ", " .. #wheelSlots .. " slots"
       .. (wheelSlots[1] and (" (" .. wheelSlots[1] .. "-" .. wheelSlots[#wheelSlots] .. ")") or "")

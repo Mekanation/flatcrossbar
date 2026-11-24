@@ -54,6 +54,7 @@ function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; 
 function Stub.GetCenter() return 0, 0 end
 function Stub.SetAtlas(self, atlas) rawset(self, '__atlas', atlas); rawset(self, '__atlasCalls', (rawget(self, '__atlasCalls') or 0) + 1) end
 function Stub.SetCooldownFromDurationObject(self, d) rawset(self, '__fromDuration', true) end
+function Stub.Clear(self) rawset(self, '__fromDuration', false) end
 function Stub.IsVisible(self) return self.__shown end
 TIME = 0
 GetTime = function() return TIME end
@@ -345,11 +346,15 @@ note('binds applied after it closes: ' .. tostring(BINDS - mailBefore))
 G.ForeverMailMain = nil
 TIME = TIME + 10
 events.__scripts.OnUpdate(events, 1)
--- combat cooldowns: the usual call fails, the duration objects take over
-ActionButton_ApplyCooldown = function() error('secret value') end
+-- cooldowns come from duration objects when the cooldown is active, and clear when it is not
+local realInfo = C_ActionBar.GetActionCooldown
+C_ActionBar.GetActionCooldown = function() return { isActive = true } end
 fire('ACTIONBAR_UPDATE_COOLDOWN')
-note('cooldown from a duration object after the usual call failed: ' .. tostring(rawget(G.FlatCrossbarButton1.cooldown, '__fromDuration')))
-ActionButton_ApplyCooldown = nil
+note('cooldown set from a duration object while active: ' .. tostring(rawget(G.FlatCrossbarButton1.cooldown, '__fromDuration')))
+C_ActionBar.GetActionCooldown = function() return { isActive = false } end
+fire('ACTIONBAR_UPDATE_COOLDOWN')
+note('cooldown after it ended: ' .. tostring(rawget(G.FlatCrossbarButton1.cooldown, '__fromDuration')))
+C_ActionBar.GetActionCooldown = realInfo
 -- the game's button icons
 try('/fcb mode controller (icons)', slash, 'mode controller')
 try('/fcb icons shapes', slash, 'icons shapes')

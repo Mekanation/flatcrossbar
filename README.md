@@ -145,7 +145,7 @@ One thing the addon cannot fix: if Steam Input sends Alt for LB and Alt+Ctrl for
 
 The icons on the buttons are the game's own menu icons. By default they are the PlayStation set (cross, circle, square and triangle for A, B, X and Y, with the D-pad, bumper, trigger and stick icons to match); `/fcb icons letters` switches to the Xbox letters and `/fcb icons auto` lets the game pick for the controller in use. It is a shared setting.
 
-In combat the game can return cooldown times as secret values that an addon cannot pass on. The buttons try the usual call first and, if it fails, set the cooldown from the game's duration objects instead (they print one line saying so, and `/fcb status` shows it). Not checked in the real client.
+In combat the game can return cooldown times as secret values that an addon cannot pass on, and the plain call then silently shows nothing. The buttons read the flag that is never secret (whether a cooldown is active) and give the cooldown frame the game's duration object, as other bar addons do, with a second pass a tenth of a second after each cooldown event. The plain call is the fallback. `/fcb status` shows which is in use. Not checked in the real client.
 
 ## Windows and menus
 
