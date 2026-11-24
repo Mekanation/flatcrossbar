@@ -91,6 +91,9 @@ PickupAction = function() end
 PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
 BINDS = 0
+STYLE = 1
+Enum = { InputDeviceInterfaceType = { MouseKeyboard = 1, Gamepad = 2 } }
+C_InputInterfaceStyle = { GetCurrentStyle = function() return STYLE end }
 local cvars = { GamePadEmulateShift = 'PADLTRIGGER', GamePadEmulateCtrl = 'PADLSHOULDER', GamePadEmulateAlt = 'NONE' }
 GetCVar = function(n) return cvars[n] end
 SetCVar = function(n, v) cvars[n] = v end
@@ -275,6 +278,18 @@ try('drag update (snap off)', driver.__scripts.OnUpdate, driver, 0.02)
 try('drag stop (snap off)', mid.__scripts.OnDragStop, mid)
 try('/fcb snap on', slash, 'snap')
 note('snap now: ' .. tostring(FlatCrossbarDB.snap))
+-- auto follows the game's gamepad mode, both ways
+try('/fcb mode auto', slash, 'mode auto')
+STYLE = 2
+events.__scripts.OnUpdate(events, 1)
+local inGamepad = BINDS
+STYLE = 1
+events.__scripts.OnUpdate(events, 1)
+note('auto: pad binds applied after leaving gamepad mode: ' .. tostring(BINDS - inGamepad))
+STYLE = 2
+events.__scripts.OnUpdate(events, 1)
+note('auto: pad binds applied after entering gamepad mode again: ' .. tostring(BINDS - inGamepad))
+try('/fcb mode controller', slash, 'mode controller')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

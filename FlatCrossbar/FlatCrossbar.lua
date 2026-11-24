@@ -164,6 +164,13 @@ end
 -- Modes -----------------------------------------------------------------------
 
 local function gamepadUIActive()
+  -- The game's own input style: the one that really switches when gamepad mode is
+  -- turned on or off.
+  if C_InputInterfaceStyle and C_InputInterfaceStyle.GetCurrentStyle
+    and Enum and Enum.InputDeviceInterfaceType then
+    local ok, style = pcall(C_InputInterfaceStyle.GetCurrentStyle)
+    if ok and style ~= nil then return style == Enum.InputDeviceInterfaceType.Gamepad end
+  end
   if InputUtil and InputUtil.IsGamepadUIEnabled then
     return InputUtil.IsGamepadUIEnabled() and true or false
   end
@@ -1477,6 +1484,7 @@ fader:SetScript("OnUpdate", function(_, elapsed)
   end
 end)
 
+local lastGamepad
 local yieldElapsed = 0
 events:SetScript("OnUpdate", function(_, elapsed)
   yieldElapsed = yieldElapsed + elapsed
@@ -1484,6 +1492,12 @@ events:SetScript("OnUpdate", function(_, elapsed)
   yieldElapsed = 0
   -- The crossbar frame can be built or shown after login; keep it hidden.
   if db.hideBlizzard then applyBlizzardVisibility() end
+  -- Auto follows the game going in and out of gamepad mode.
+  local gamepad = gamepadUIActive()
+  if gamepad ~= lastGamepad then
+    lastGamepad = gamepad
+    if db.mode == "auto" then applyBindings() end
+  end
   local now = anyYieldFrameShown()
   if now ~= yielding then
     yielding = now
