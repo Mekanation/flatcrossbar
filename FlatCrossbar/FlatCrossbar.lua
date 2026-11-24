@@ -50,6 +50,7 @@ local DEFAULTS = {
   yieldFrames = {},
   fade = true,
   snap = true,
+  hideInKeyboard = true,
   fadeAlpha = 0.3,
   wheelBars = { 6, 7, 8 },
   autoScale = true,
@@ -81,6 +82,7 @@ local groupFrames, groupHandles, sideTexts, reservedSlots = {}, {}, {}, {}
 local toolbarHandle
 local layoutToolbar, relayout
 local buildError
+local manualHidden = false -- /fcb hide
 local wheelDpad = false -- the wheel is open: D-pad left/right turn its pages
 local yielding = false -- a bag, bank or vendor window is up: the pad binds step aside
 local wheel, wheelPageButton, wheelHeaderButton
@@ -324,6 +326,20 @@ local function updateLabels()
   end
 end
 
+-- In keyboard mode the bars and the toolbar are hidden (the game's own action bars
+-- are in use); /fcb hidekb off keeps them. /fcb hide hides them in any mode.
+local function updatePanels()
+  if not container or InCombatLockdown() then
+    if container then pendingBindings = true end
+    return
+  end
+  local mode = effectiveMode()
+  local pad = (mode == "controller" or mode == "both")
+  local show = not manualHidden and (pad or not db.hideInKeyboard)
+  container:SetShown(show)
+  for _, gf in ipairs(groupFrames) do gf:SetShown(show) end
+end
+
 local function applyBindings()
   updateLabels()
   if InCombatLockdown() then
@@ -331,6 +347,7 @@ local function applyBindings()
     return
   end
   pendingBindings = false
+  updatePanels()
   ClearOverrideBindings(bindOwner)
   local mode = effectiveMode()
   -- The controller binds are the D-pad, face buttons and triggers: while a bag or
@@ -794,8 +811,8 @@ end
 
 local function setBarShown(show)
   if InCombatLockdown() then return print_("can't do that in combat.") end
-  container:SetShown(show)
-  for _, gf in ipairs(groupFrames) do gf:SetShown(show) end
+  manualHidden = not show
+  updatePanels()
 end
 
 local function makeHeaderButton(text, width)
@@ -1578,6 +1595,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
       createFrames()
       restorePosition()
       applyLock()
+      updatePanels()
       if db.autoScale then db.scale = fitScale() end
       layout()
     end)
@@ -1648,6 +1666,7 @@ local HELP = {
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
   "/fcb wheelbars 6 7 8 - the keyboard action bars the wheel uses (not the crossbar's)",
+  "/fcb hidekb [on|off] - hide the bars and toolbar in keyboard mode (the game's own bars are used there)",
   "/fcb snap [on|off] - snap bars to each other while you drag them (hold Ctrl to skip once)",
   "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
   "/fcb fade [on|off|0-1] - the bar in use has the focus (Base when no trigger is held) and the others dim; only while locked",
@@ -1779,6 +1798,10 @@ SlashCmdList.FLATCROSSBAR = function(input)
     print_("wheel actions from action bars " .. table.concat(db.wheelBars, ", ") .. " (" .. #wheelSlots .. " slots, "
       .. WHEEL_PAGES .. " pages). /fcb wheelbars 6 7 8 to change.")
     if wheelNotice then print_(wheelNotice) end
+  elseif cmd == "hidekb" then
+    if arg == "on" then db.hideInKeyboard = true elseif arg == "off" then db.hideInKeyboard = false else db.hideInKeyboard = not db.hideInKeyboard end
+    updatePanels()
+    print_("bars hidden in keyboard mode: " .. (db.hideInKeyboard and "on" or "off"))
   elseif cmd == "snap" then
     if arg == "on" then db.snap = true elseif arg == "off" then db.snap = false else db.snap = not db.snap end
     print_("snapping " .. (db.snap and "on" or "off"))

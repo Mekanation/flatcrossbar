@@ -63,6 +63,7 @@ The four crossbar bars (Base, LT, RT, LT+RT) are pressed by the game's own cross
 - While you drag, a bar snaps to the others and the toolbar: flush against a side, or lined up with an edge, once it is within a few pixels. Hold Ctrl while dragging to skip it once, or turn it off with `/fcb snap off` (`/fcb snap on` brings it back).
 - `/fcb helper [on|off]` shows or hides the labels (the drag area stays).
 - In keyboard mode the gap and its label close up so the eight buttons sit together (once the bars are locked; unlocked, the gap stays open because the label is what you drag).
+- In keyboard mode the bars and the toolbar are hidden, so the game's own action bars are what you see; they come back in controller mode. `/fcb hidekb off` keeps them showing in keyboard mode.
 - `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle and Bind buttons.
 - `/fcb resetpos` puts the bars and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.
