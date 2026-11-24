@@ -54,6 +54,7 @@ local DEFAULTS = {
   iconSet = "shapes",
   fadeAlpha = 0.3,
   wheelBars = { 6, 7, 8 },
+  wheelSens = "medium",
   autoScale = true,
   groupPoints = {},
   scale = 1,
@@ -1314,14 +1315,29 @@ local function readStick()
 end
 
 local stickWasActive = false
+
+-- How easily the stick moves the selection: the dead zone (how far it must be pushed to
+-- select, and a little less to let go) and how many degrees past a slice's edge it must go
+-- before the selection moves on to the next, so it does not flicker on a border.
+local WHEEL_SENS = { low = { 0.7, 14 }, medium = { 0.55, 8 }, high = { 0.4, 0 } }
+
 local function aimWithStick()
   local x, y, len = readStick()
   if not x then return end
+  len = len or math.sqrt(x * x + y * y)
+  local preset = WHEEL_SENS[db.wheelSens] or WHEEL_SENS.medium
+  local deadzone, hold = preset[1], math.rad(preset[2])
   local sliceSize = (2 * math.pi) / WHEEL_SLICES
-  if (len or math.sqrt(x * x + y * y)) >= STICK_DEADZONE then
+  -- once on a slice, the stick can come back a little before the selection is let go
+  if len >= (wheelSel and deadzone * 0.75 or deadzone) then
     -- Same maths as Blizzard's flyout radial: swapping x and y puts 0 at the top.
-    local angle = (math.atan2(x, y) + sliceSize / 2) % (2 * math.pi)
-    local slice = math.floor(angle / sliceSize) + 1
+    local angle = math.atan2(x, y) % (2 * math.pi)
+    local slice = math.floor(((angle + sliceSize / 2) % (2 * math.pi)) / sliceSize) + 1
+    if wheelSel and slice ~= wheelSel then
+      local center = (wheelSel - 1) * sliceSize
+      local away = math.abs((angle - center + math.pi) % (2 * math.pi) - math.pi)
+      if away <= sliceSize / 2 + hold then slice = wheelSel end
+    end
     stickWasActive = true
     if slice ~= wheelSel then setWheelSelection(slice) end
   elseif stickWasActive then
@@ -1871,7 +1887,7 @@ end
 local SHARED = {
   point = true, groupPoints = true, scale = true, autoScale = true, layoutVersion = true,
   locked = true, helper = true, hideButtons = true, snap = true, fade = true, fadeAlpha = true,
-  hideInKeyboard = true, iconSet = true, hideBlizzard = true, wheelScale = true, wheelBars = true, wheelBarsVersion = true,
+  hideInKeyboard = true, iconSet = true, hideBlizzard = true, wheelScale = true, wheelBars = true, wheelBarsVersion = true, wheelSens = true,
 }
 
 local function makeDB(character, account)
@@ -2107,6 +2123,7 @@ local HELP = {
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName (or Prefix*) | remove FrameName | list - pad binds step aside while a bag, bank, vendor or mail window is open",
+  "/fcb wheelsens low|medium|high - how easily the stick moves the wheel selection (low = harder to push, slower to switch)",
   "/fcb wheelbars 6 7 8 - the keyboard action bars the wheel uses (not the crossbar's)",
   "/fcb hidekb [on|off] - hide the bars and toolbar in keyboard mode (the game's own bars are used there)",
   "/fcb icons [shapes|letters|auto] - the button icons: PlayStation shapes (default), Xbox letters, or whatever the game uses",
@@ -2236,6 +2253,9 @@ SlashCmdList.FLATCROSSBAR = function(input)
     elseif n and n >= 0 and n <= 1 then db.fade = true; db.fadeAlpha = n
     elseif arg ~= "" then return print_("/fcb fade on|off|0-1") end
     print_("fade " .. (db.fade and ("on, other bars at " .. db.fadeAlpha) or "off"))
+  elseif cmd == "wheelsens" then
+    if arg == "low" or arg == "medium" or arg == "high" then db.wheelSens = arg end
+    print_("wheel sensitivity: " .. db.wheelSens .. " (/fcb wheelsens low|medium|high)")
   elseif cmd == "wheelbars" then
     local bars = {}
     for digits in arg:gmatch("%d+") do
