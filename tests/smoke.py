@@ -220,10 +220,10 @@ note('sensitivity ' .. tostring(FlatCrossbarAccountDB.wheelSens) .. ': top slice
 lst.__scripts.OnGamePadStick(lst, 'Right', 0.5, 0.5, 0.45)
 wheel.__scripts.OnUpdate(wheel)
 note('a light push (0.45) keeps the selection: ' .. tostring(wbtn:GetAttribute('action') == clearlyPast))
-try('/fcb wheelsens high', slash, 'wheelsens high')
+try('/fcb wheelsense high', slash, 'wheelsense high')
 aimAt(0, 1)
 note('high sensitivity: 24 degrees switches at once ' .. tostring(aimAt(24, 1) ~= topAction))
-try('/fcb wheelsens medium', slash, 'wheelsens medium')
+try('/fcb wheelsense medium', slash, 'wheelsense medium')
 aimAt(0, 1)
 note('camera speed while the wheel is open: ' .. tostring(cvars.GamePadCameraYawSpeed) .. ' / ' .. tostring(cvars.GamePadCameraPitchSpeed) .. ', saved: ' .. tostring(FlatCrossbarDB.wheelSavedCamera and FlatCrossbarDB.wheelSavedCamera.GamePadCameraYawSpeed))
 local b3 = G.FlatCrossbarButton3

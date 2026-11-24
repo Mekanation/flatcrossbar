@@ -96,7 +96,8 @@ local hoverTarget, forcedTarget
 local rangeState = {}
 
 local function print_(msg)
-  print("|cff66ccffFlatCrossbar:|r " .. msg)
+  -- a lone | starts a chat escape (|c colour, |k, |h link...), so the | in "low|medium|high" is doubled
+  print("|cff66ccffFlatCrossbar:|r " .. (tostring(msg):gsub("|", "||")))
 end
 
 -- Storage slots ---------------------------------------------------------------
@@ -2134,7 +2135,7 @@ local HELP = {
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName (or Prefix*) | remove FrameName | list - pad binds step aside while a bag, bank, vendor or mail window is open",
-  "/fcb wheelsens low|medium|high - how easily the stick moves the wheel selection (low = harder to push, slower to switch)",
+  "/fcb wheelsense low|medium|high - how easily the stick moves the wheel selection (low = harder to push, slower to switch)",
   "/fcb wheelbars 6 7 8 - the keyboard action bars the wheel uses (not the crossbar's)",
   "/fcb hidekb [on|off] - hide the bars and toolbar in keyboard mode (the game's own bars are used there)",
   "/fcb icons [shapes|letters|auto] - the button icons: PlayStation shapes (default), Xbox letters, or whatever the game uses",
@@ -2264,9 +2265,9 @@ SlashCmdList.FLATCROSSBAR = function(input)
     elseif n and n >= 0 and n <= 1 then db.fade = true; db.fadeAlpha = n
     elseif arg ~= "" then return print_("/fcb fade on|off|0-1") end
     print_("fade " .. (db.fade and ("on, other bars at " .. db.fadeAlpha) or "off"))
-  elseif cmd == "wheelsens" then
+  elseif cmd == "wheelsense" or cmd == "wheelsens" then
     if arg == "low" or arg == "medium" or arg == "high" then db.wheelSens = arg end
-    print_("wheel sensitivity: " .. db.wheelSens .. " (/fcb wheelsens low|medium|high)")
+    print_("wheel sensitivity: " .. db.wheelSens .. " (/fcb wheelsense low|medium|high)")
   elseif cmd == "wheelbars" then
     local bars = {}
     for digits in arg:gmatch("%d+") do
