@@ -69,6 +69,7 @@ local db
 local buttons = {}
 local container, header, modeButton, pageButton, bindButton, bindCapture
 local groupLabels, reservedSlots = {}, {}
+local buildError
 local wheel, wheelPageButton, wheelHeaderButton
 local slices = {}
 local bindOwner = CreateFrame("Frame")
@@ -962,9 +963,16 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     copyDefaults(db, DEFAULTS)
     if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
     db.padSeeded = true
-    createFrames()
-    restorePosition()
-    layout()
+    local built, err = pcall(function()
+      createFrames()
+      restorePosition()
+      layout()
+    end)
+    if not built then
+      buildError = tostring(err)
+      print_("couldn't build the bar: " .. buildError)
+      return
+    end
     for _, e in ipairs({
       "PLAYER_ENTERING_WORLD", "PLAYER_REGEN_ENABLED", "PLAYER_REGEN_DISABLED", "ACTIONBAR_SLOT_CHANGED",
       "ACTIONBAR_UPDATE_COOLDOWN", "ACTIONBAR_UPDATE_USABLE", "ACTIONBAR_UPDATE_STATE",
@@ -1018,7 +1026,7 @@ local HELP = {
   "/fcb scale N - bar scale",
   "/fcb lock | unlock - dragging the bar and (without Shift) its buttons",
   "/fcb blizzard on|off - hide or show Blizzard's own crossbar",
-  "/fcb show | hide - this bar",
+  "/fcb show | hide - this bar   /fcb status - why it isn't showing",
 }
 
 SLASH_FLATCROSSBAR1 = "/fcb"
@@ -1028,6 +1036,25 @@ SlashCmdList.FLATCROSSBAR = function(input)
   local cmd, arg = input:match("^%s*(%S*)%s*(.-)%s*$")
   cmd = cmd:lower()
   arg = arg:lower()
+
+  if cmd == "status" then
+    print_("build error: " .. tostring(buildError))
+    print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", layout: " .. tostring(db.layout))
+    print_("input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode())
+    if container then
+      local parent = container:GetParent()
+      print_(string.format("shown %s, visible %s, parent %s (shown %s), size %.0fx%.0f, scale %.2f, alpha %.2f, strata %s",
+        tostring(container:IsShown()), tostring(container:IsVisible()), tostring(parent and parent:GetName()),
+        tostring(parent and parent:IsShown()), container:GetWidth() or 0, container:GetHeight() or 0,
+        container:GetEffectiveScale() or 0, container:GetEffectiveAlpha() or 0, tostring(container:GetFrameStrata())))
+      local point, _, relPoint, x, y = container:GetPoint()
+      print_("point " .. tostring(point) .. " " .. tostring(relPoint) .. " " .. tostring(x) .. " " .. tostring(y))
+    end
+    return
+  end
+  if not container then
+    return print_("the bar didn't build" .. (buildError and (": " .. buildError) or "") .. ". /fcb status has details.")
+  end
 
   if cmd == "mode" then
     for _, m in ipairs(MODES) do

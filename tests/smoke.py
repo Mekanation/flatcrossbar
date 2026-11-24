@@ -52,6 +52,12 @@ function Stub.CreateMaskTexture(self) return newStub('Mask') end
 function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
+function Stub.GetWidth() return 100 end
+function Stub.GetHeight() return 50 end
+function Stub.GetEffectiveScale() return 1 end
+function Stub.GetEffectiveAlpha() return 1 end
+function Stub.GetFrameStrata() return 'MEDIUM' end
+function Stub.GetParent() return UIParent end
 
 local G = _G
 math.atan2 = math.atan2 or function(y, x) return math.atan(y, x) end
@@ -173,6 +179,7 @@ try('/fcb layout groups', slash, 'layout groups')
 try('/fcb groupcols 2', slash, 'groupcols 2')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
+try('/fcb status', slash, 'status')
 try('/fcb help', slash, '')
 fire('ACTIONBAR_SLOT_CHANGED', 1)
 fire('PLAYER_REGEN_DISABLED')
