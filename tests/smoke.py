@@ -88,6 +88,7 @@ PickupAction = function() end
 PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
 BINDS = 0
+InputIconTextureSetUtility = { GetNormalActiveInputIconButtonTexture = function(k) return 'atlas-' .. k end }
 SetOverrideBinding = function(owner, pri, key, cmd) BINDS = BINDS + 1; note(('bindcmd %s -> %s'):format(key, cmd)) end
 SetOverrideBindingClick = function(owner, pri, key, name, btn) BINDS = BINDS + 1; note(('bind %s -> %s:%s'):format(key, name, btn)) end
 ActionButton_ApplyCooldown = nil
@@ -224,6 +225,16 @@ for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.0
 note('alpha with nothing held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
 try('/fcb fade 0.5', slash, 'fade 0.5')
 try('/fcb scale auto', slash, 'scale auto')
+-- glyphs: the game's icons, then the letter and arrow fallback
+local function glyphOf(btn) return btn.Glyph:IsShown(), rawget(btn, '__atlas') end
+try('/fcb mode controller (icons)', slash, 'mode controller')
+note('glyph shown with icons: ' .. tostring(G.FlatCrossbarButton1.Glyph:IsShown()) .. ', text shown: ' .. tostring(G.FlatCrossbarButton1.GlyphText:IsShown()))
+local keep = InputIconTextureSetUtility
+InputIconTextureSetUtility = nil
+try('/fcb mode keyboard', slash, 'mode keyboard')
+try('/fcb mode controller (no icons)', slash, 'mode controller')
+note('glyph shown without icons: ' .. tostring(G.FlatCrossbarButton1.Glyph:IsShown()) .. ', text shown: ' .. tostring(G.FlatCrossbarButton1.GlyphText:IsShown()))
+InputIconTextureSetUtility = keep
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

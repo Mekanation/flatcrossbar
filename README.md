@@ -53,7 +53,7 @@ addon's own logic, not game behaviour.
 
 ## Layout
 
-Each of the crossbar's bars is a single row of 8 buttons in its own panel with a coloured edge: Base, LT, RT and LT+RT, plus LB, RB, LT x2 and RT x2 in a second row above. The scale is set on first run so a row fits the screen (`/fcb scale auto` redoes it). Under each bar a coloured label says what to hold ("LT", "hold LT"). The first four buttons of a bar are the D-pad and the last four are the face buttons. The base bar's face buttons are the game's own (see below). A small toolbar above holds the keyboard/controller toggle, wheel and bind buttons.
+Each of the crossbar's bars is a single row of 8 buttons in its own panel with the same blue edge: Base, LT, RT and LT+RT, plus LB, RB, LT x2 and RT x2 in a second row above. The scale is set on first run so a row fits the screen (`/fcb scale auto` redoes it). Under each bar a label says what to hold ("LT", "hold LT"), so the buttons only show which controller button they are: arrows for the D-pad and the A/B/X/Y icons, centred in each button at half opacity. The first four buttons of a bar are the D-pad and the last four are the face buttons. A keyboard bind still shows as small text in the corner. The base bar's face buttons are the game's own (see below). A small toolbar above holds the keyboard/controller toggle, wheel and bind buttons.
 
 While you hold LT, RT, LB or RB (as Shift, Ctrl or Alt) in controller mode, the other bars fade so the active one stands out. `/fcb fade off` turns that off; `/fcb fade 0.5` sets how dim they get.
 

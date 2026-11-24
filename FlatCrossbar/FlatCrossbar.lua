@@ -123,11 +123,9 @@ local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LB", "RB", "LT x2", "RT x2" 
 -- The other four bars are not modifiers by themselves, so Steam Input sends: Alt for
 -- LB, Alt+Ctrl for RB, Alt+Shift for a double press of LT and Alt+Ctrl+Shift for RT.
 local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-", "ALT-SHIFT-", "ALT-CTRL-SHIFT-" }
-local GROUP_COLOR = {
-  { 0.30, 0.75, 0.40 }, { 0.30, 0.55, 0.95 }, { 0.95, 0.60, 0.20 },
-  { 0.70, 0.40, 0.90 }, { 0.25, 0.80, 0.80 }, { 0.95, 0.40, 0.60 },
-  { 0.90, 0.80, 0.25 }, { 0.85, 0.35, 0.35 },
-}
+local FRAME_COLOR = { 0.42, 0.58, 0.85 }
+local GROUP_COLOR = {}
+for g = 1, #GROUP_LABEL do GROUP_COLOR[g] = FRAME_COLOR end
 local GROUP_HINT = {
   "no trigger", "hold LT", "hold RT", "hold LT + RT", "hold LB", "hold RB",
   "double-press LT", "double-press RT",
@@ -221,13 +219,61 @@ local function shortKey(key)
   return mods .. base
 end
 
+-- The corner text is the keyboard key; a controller button is drawn as a glyph.
 local function hotkeyText(index)
   local mode = effectiveMode()
-  local kb, pad = db.kb[index], db.pad[index]
-  if mode == "keyboard" then return shortKey(kb) or "" end
-  if mode == "controller" then return shortKey(pad) or "" end
-  if kb and pad then return shortKey(kb) .. "\n" .. shortKey(pad) end
-  return shortKey(kb or pad) or ""
+  if mode == "controller" then return "" end
+  return shortKey(db.kb[index]) or ""
+end
+
+-- The controller button a bound key ends in, without the trigger modifiers.
+local function padBase(key)
+  return key and key:match("([^%-]+)$") or nil
+end
+
+local GLYPH_TEXT = {
+  PADDLEFT = "<", PADDUP = "^", PADDRIGHT = ">", PADDDOWN = "v",
+  PAD1 = "A", PAD2 = "B", PAD3 = "X", PAD4 = "Y",
+}
+local GLYPH_SIZE = 22
+local GLYPH_ALPHA = 0.5
+
+-- The game's own icon for a controller button (arrows for the D-pad, the face
+-- buttons for the controller in use), when this build has them.
+local function glyphAtlas(key)
+  local util = _G.InputIconTextureSetUtility
+  if not (util and util.GetNormalActiveInputIconButtonTexture) then return nil end
+  local ok, atlas = pcall(util.GetNormalActiveInputIconButtonTexture, key)
+  if ok and type(atlas) == "string" and atlas ~= "" then return atlas end
+end
+
+local function addGlyph(frame)
+  frame.Glyph = frame:CreateTexture(nil, "OVERLAY", nil, 2)
+  frame.Glyph:SetSize(GLYPH_SIZE, GLYPH_SIZE)
+  frame.Glyph:SetPoint("CENTER")
+  frame.Glyph:SetAlpha(GLYPH_ALPHA)
+  frame.GlyphText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+  frame.GlyphText:SetPoint("CENTER")
+  frame.GlyphText:SetAlpha(GLYPH_ALPHA)
+end
+
+-- Centred in the frame at half opacity; the letters or arrows when there is no icon.
+local function setGlyph(frame, key)
+  if not key then
+    frame.Glyph:Hide()
+    frame.GlyphText:Hide()
+    return
+  end
+  local atlas = glyphAtlas(key)
+  if atlas then
+    frame.Glyph:SetAtlas(atlas)
+    frame.Glyph:Show()
+    frame.GlyphText:Hide()
+  else
+    frame.Glyph:Hide()
+    frame.GlyphText:SetText(GLYPH_TEXT[key] or shortKey(key) or key)
+    frame.GlyphText:Show()
+  end
 end
 
 -- Override bindings -----------------------------------------------------------
@@ -291,11 +337,15 @@ local function applyBindings()
       end
     end
   end
+  local padShown = (mode == "controller" or mode == "both")
   for i = 1, NUM_BUTTONS do
-    if buttons[i] then buttons[i].HotKey:SetText(hotkeyText(i)) end
+    if buttons[i] then
+      buttons[i].HotKey:SetText(hotkeyText(i))
+      setGlyph(buttons[i], padShown and padBase(db.pad[i]) or nil)
+    end
   end
   for k, slot in ipairs(reservedSlots) do
-    slot.HotKey:SetText(padLive and shortKey(db.pad[RESERVED_TARGETS[k]]) or "")
+    setGlyph(slot, padShown and padBase(db.pad[RESERVED_TARGETS[k]]) or nil)
   end
   if modeButton then modeButton:SetText(MODE_LABEL[db.mode]) end
 
@@ -471,6 +521,7 @@ local function createButton(i)
   btn.HotKey = btn:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
   btn.HotKey:SetPoint("TOPLEFT", 2, -2)
   btn.HotKey:SetJustifyH("LEFT")
+  addGlyph(btn)
 
   btn:SetScript("OnDragStart", function(self)
     if InCombatLockdown() then return end
@@ -1006,10 +1057,9 @@ local function createFrames()
     bg:SetColorTexture(0, 0, 0, 0.25)
     addBorder(slot, 0.2, 0.2, 0.2, 1)
     slot.Label = slot:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    slot.Label:SetPoint("CENTER")
+    slot.Label:SetPoint("BOTTOM", 0, 2)
     slot.Label:SetText(RESERVED_LABEL[k])
-    slot.HotKey = slot:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
-    slot.HotKey:SetPoint("TOPLEFT", 2, -2)
+    addGlyph(slot)
     slot:EnableMouse(true)
     slot:SetScript("OnEnter", function(self)
       hoverTarget = RESERVED_TARGETS[k]
