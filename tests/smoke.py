@@ -52,6 +52,8 @@ function Stub.CreateMaskTexture(self) return newStub('Mask') end
 function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
+function Stub.SetAtlas(self, atlas) rawset(self, '__atlas', atlas) end
+function Stub.SetCooldownFromDurationObject(self, d) rawset(self, '__fromDuration', true) end
 function Stub.IsVisible(self) return self.__shown end
 TIME = 0
 GetTime = function() return TIME end
@@ -337,6 +339,18 @@ note('binds applied after it closes: ' .. tostring(BINDS - mailBefore))
 G.ForeverMailMain = nil
 TIME = TIME + 10
 events.__scripts.OnUpdate(events, 1)
+-- combat cooldowns: the usual call fails, the duration objects take over
+ActionButton_ApplyCooldown = function() error('secret value') end
+fire('ACTIONBAR_UPDATE_COOLDOWN')
+note('cooldown from a duration object after the usual call failed: ' .. tostring(rawget(G.FlatCrossbarButton1.cooldown, '__fromDuration')))
+ActionButton_ApplyCooldown = nil
+-- the game's button icons
+try('/fcb mode controller (icons)', slash, 'mode controller')
+try('/fcb icons shapes', slash, 'icons shapes')
+note('shapes: D-pad left = ' .. tostring(rawget(G.FlatCrossbarButton1.Glyph, '__atlas')) .. ', slot 8 = ' .. tostring(rawget(G.FlatCrossbarButton8.Glyph, '__atlas')))
+try('/fcb icons letters', slash, 'icons letters')
+note('letters: D-pad left = ' .. tostring(rawget(G.FlatCrossbarButton1.Glyph, '__atlas')) .. ', slot 8 = ' .. tostring(rawget(G.FlatCrossbarButton8.Glyph, '__atlas')))
+try('/fcb icons shapes (back)', slash, 'icons shapes')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

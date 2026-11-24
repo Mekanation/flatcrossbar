@@ -140,3 +140,9 @@ How the bars look and behave is the same for every character: where each bar sit
 ForeverMail replaces the mailbox with its own window and hides the game's, so the mail window check alone would not see it. While a large top-level window whose name starts with `ForeverMail` is showing, the controller binds step aside, as for the bags. `/fcb yield add Prefix*` adds another prefix, and `/fcb yield add FrameName` an exact frame. `/fcb status` shows whether the binds are stepping aside.
 
 One thing the addon cannot fix: if Steam Input sends Alt for LB and Alt+Ctrl for RB (for the extra bars), the game never sees the bumpers, so any window that uses LB and RB (tabs, for example) cannot use them. Put the bumper bars on a Steam Input action layer you switch off in such windows, or use `/fcb keys` with the window open to see what arrives.
+
+## Button icons and cooldowns in combat
+
+The icons on the buttons are the game's own menu icons. By default they are the PlayStation set (cross, circle, square and triangle for A, B, X and Y, with the D-pad, bumper, trigger and stick icons to match); `/fcb icons letters` switches to the Xbox letters and `/fcb icons auto` lets the game pick for the controller in use. It is a shared setting.
+
+In combat the game can return cooldown times as secret values that an addon cannot pass on. The buttons try the usual call first and, if it fails, set the cooldown from the game's duration objects instead (they print one line saying so, and `/fcb status` shows it). Not checked in the real client.

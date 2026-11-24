@@ -51,6 +51,7 @@ local DEFAULTS = {
   fade = true,
   snap = true,
   hideInKeyboard = true,
+  iconSet = "shapes",
   fadeAlpha = 0.3,
   wheelBars = { 6, 7, 8 },
   autoScale = true,
@@ -249,7 +250,34 @@ local ICON_DIM = 0.72 -- the action icons are a little duller than the glyphs on
 
 -- The game's own icon for a controller button (arrows for the D-pad, the face
 -- buttons for the controller in use), when this build has them.
+-- The game's own button icons, as its menus draw them (names from
+-- Blizzard_SharedXML InputIcons): "shapes" are the PlayStation set (cross, circle,
+-- square, triangle for A, B, X, Y), "letters" the Xbox set. "auto" asks the game
+-- which set the controller in use gets.
+local ICON_ATLAS = {
+  shapes = {
+    PAD1 = "gamepad-ps-buttoncrox-normal", PAD2 = "gamepad-ps-buttoncircle-normal",
+    PAD3 = "gamepad-ps-buttonsquare-normal", PAD4 = "gamepad-ps-buttontriangle-normal",
+    PADDUP = "gamepad-ps-dpadup-normal", PADDDOWN = "gamepad-ps-dpaddown-normal",
+    PADDLEFT = "gamepad-ps-dpadleft-normal", PADDRIGHT = "gamepad-ps-dpadright-normal",
+    PADLSHOULDER = "gamepad-ps-triggerl1-normal", PADRSHOULDER = "gamepad-ps-triggerr1-normal",
+    PADLTRIGGER = "gamepad-ps-triggerl2-normal", PADRTRIGGER = "gamepad-ps-triggerr2-normal",
+    PADLSTICK = "gamepad-ps-stickl3-normal", PADRSTICK = "gamepad-ps-stickr3-normal",
+  },
+  letters = {
+    PAD1 = "gamepad-xbox1-buttona-normal", PAD2 = "gamepad-xbox1-buttonb-normal",
+    PAD3 = "gamepad-xbox1-buttonx-normal", PAD4 = "gamepad-xbox1-buttony-normal",
+    PADDUP = "gamepad-xbox1-dpadup-normal", PADDDOWN = "gamepad-xbox1-dpaddown-normal",
+    PADDLEFT = "gamepad-xbox1-dpadleft-normal", PADDRIGHT = "gamepad-xbox1-dpadright-normal",
+    PADLSHOULDER = "gamepad-xbox1-trigger-lb-normal", PADRSHOULDER = "gamepad-xbox1-trigger-rb-normal",
+    PADLTRIGGER = "gamepad-xbox1-trigger-lt-normal", PADRTRIGGER = "gamepad-xbox1-trigger-rt-normal",
+    PADLSTICK = "gamepad-xbox1-stick-l3-normal", PADRSTICK = "gamepad-xbox1-stick-r3-normal",
+  },
+}
+
 local function glyphAtlas(key)
+  local chosen = ICON_ATLAS[db.iconSet]
+  if chosen and chosen[key] then return chosen[key] end
   local util = _G.InputIconTextureSetUtility
   if not (util and util.GetNormalActiveInputIconButtonTexture) then return nil end
   local ok, atlas = pcall(util.GetNormalActiveInputIconButtonTexture, key)
@@ -411,22 +439,52 @@ end
 
 -- Button display --------------------------------------------------------------
 
-local function updateCooldown(btn, action)
-  local ok = pcall(function()
-    if ActionButton_ApplyCooldown and C_ActionBar.GetActionCharges and C_ActionBar.GetActionLossOfControlCooldownInfo then
-      ActionButton_ApplyCooldown(btn.cooldown, C_ActionBar.GetActionCooldown(action),
-        btn.chargeCooldown, C_ActionBar.GetActionCharges(action),
-        btn.locCooldown, C_ActionBar.GetActionLossOfControlCooldownInfo(action))
+-- In combat the game can hand back cooldown numbers as secret values, which code like
+-- this cannot pass to SetCooldown (and Cooldown:Clear is a protected function there). The
+-- ordinary path is tried first; if it fails, the cooldown is set from the duration
+-- objects the game also offers, which are not secret.
+local cooldownError
+
+local function clearCooldown(cooldown)
+  if not pcall(cooldown.SetCooldown, cooldown, 0, 0) then pcall(cooldown.Clear, cooldown) end
+end
+
+local function plainCooldown(btn, action)
+  if ActionButton_ApplyCooldown and C_ActionBar.GetActionCharges and C_ActionBar.GetActionLossOfControlCooldownInfo then
+    ActionButton_ApplyCooldown(btn.cooldown, C_ActionBar.GetActionCooldown(action),
+      btn.chargeCooldown, C_ActionBar.GetActionCharges(action),
+      btn.locCooldown, C_ActionBar.GetActionLossOfControlCooldownInfo(action))
+  else
+    local info = C_ActionBar.GetActionCooldown(action)
+    if info and info.isActive then
+      btn.cooldown:SetCooldown(info.startTime, info.duration, info.modRate)
     else
-      local info = C_ActionBar.GetActionCooldown(action)
-      if info and info.isActive then
-        btn.cooldown:SetCooldown(info.startTime, info.duration, info.modRate)
-      else
-        btn.cooldown:Clear()
-      end
+      clearCooldown(btn.cooldown)
     end
-  end)
-  if not ok then btn.cooldown:Clear() end
+  end
+end
+
+local function durationCooldown(btn, action)
+  local api = C_ActionBar
+  if not (api.GetActionCooldownDuration and btn.cooldown.SetCooldownFromDurationObject) then return false end
+  btn.cooldown:SetCooldownFromDurationObject(api.GetActionCooldownDuration(action), true)
+  if api.GetActionChargeDuration then
+    btn.chargeCooldown:SetCooldownFromDurationObject(api.GetActionChargeDuration(action), true)
+  end
+  if api.GetActionLossOfControlCooldownDuration then
+    btn.locCooldown:SetCooldownFromDurationObject(api.GetActionLossOfControlCooldownDuration(action), true)
+  end
+  return true
+end
+
+local function updateCooldown(btn, action)
+  local ok, err = pcall(plainCooldown, btn, action)
+  if ok then return end
+  if not cooldownError then
+    cooldownError = tostring(err)
+    print_("cooldowns: the usual call failed (" .. cooldownError .. "); using the game's duration objects instead.")
+  end
+  if not pcall(durationCooldown, btn, action) then clearCooldown(btn.cooldown) end
 end
 
 local function updateButton(btn, actionOverride)
@@ -440,7 +498,7 @@ local function updateButton(btn, actionOverride)
     btn.icon:Hide()
     btn.Count:SetText("")
     btn.checked:Hide()
-    btn.cooldown:Clear()
+    clearCooldown(btn.cooldown)
     return
   end
 
@@ -465,7 +523,7 @@ local function updateButton(btn, actionOverride)
     btn.icon:Hide()
     btn.Count:SetText("")
     btn.checked:Hide()
-    btn.cooldown:Clear()
+    clearCooldown(btn.cooldown)
   end
 end
 
@@ -1540,7 +1598,7 @@ end
 local SHARED = {
   point = true, groupPoints = true, scale = true, autoScale = true, layoutVersion = true,
   locked = true, helper = true, hideButtons = true, snap = true, fade = true, fadeAlpha = true,
-  hideInKeyboard = true, hideBlizzard = true, wheelScale = true, wheelBars = true, wheelBarsVersion = true,
+  hideInKeyboard = true, iconSet = true, hideBlizzard = true, wheelScale = true, wheelBars = true, wheelBarsVersion = true,
 }
 
 local function makeDB(character, account)
@@ -1770,6 +1828,7 @@ local HELP = {
   "/fcb yield [on|off] | add FrameName (or Prefix*) | remove FrameName | list - pad binds step aside while a bag, bank, vendor or mail window is open",
   "/fcb wheelbars 6 7 8 - the keyboard action bars the wheel uses (not the crossbar's)",
   "/fcb hidekb [on|off] - hide the bars and toolbar in keyboard mode (the game's own bars are used there)",
+  "/fcb icons [shapes|letters|auto] - the button icons: PlayStation shapes (default), Xbox letters, or whatever the game uses",
   "/fcb snap [on|off] - snap bars to each other while you drag them (hold Ctrl to skip once)",
   "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
   "/fcb fade [on|off|0-1] - the bar in use has the focus (Base when no trigger is held) and the others dim; only while locked",
@@ -1790,6 +1849,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
 
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
+    print_("cooldown fallback in use: " .. tostring(cooldownError ~= nil) .. (cooldownError and (" (" .. cooldownError .. ")") or ""))
     print_("the game says bar " .. tostring(gameActiveBar()) .. " is in use (1 Base, 2 LT, 3 RT, 4 LT+RT; nil = it can't tell)")
     print_("wheel: action bars " .. table.concat(db.wheelBars, ", ") .. ", " .. #wheelSlots .. " slots"
       .. (wheelSlots[1] and (" (" .. wheelSlots[1] .. "-" .. wheelSlots[#wheelSlots] .. ")") or "")
@@ -1905,6 +1965,12 @@ SlashCmdList.FLATCROSSBAR = function(input)
     if arg == "on" then db.hideInKeyboard = true elseif arg == "off" then db.hideInKeyboard = false else db.hideInKeyboard = not db.hideInKeyboard end
     updatePanels()
     print_("bars hidden in keyboard mode: " .. (db.hideInKeyboard and "on" or "off"))
+  elseif cmd == "icons" then
+    if arg == "shapes" or arg == "letters" or arg == "auto" then
+      db.iconSet = arg
+      applyBindings() -- redraws the icons
+    end
+    print_("button icons: " .. db.iconSet .. " (/fcb icons shapes|letters|auto)")
   elseif cmd == "snap" then
     if arg == "on" then db.snap = true elseif arg == "off" then db.snap = false else db.snap = not db.snap end
     print_("snapping " .. (db.snap and "on" or "off"))
