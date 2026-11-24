@@ -49,6 +49,7 @@ local DEFAULTS = {
   yield = true,
   yieldFrames = {},
   fade = true,
+  snap = true,
   fadeAlpha = 0.3,
   wheelBars = { 7, 8, 9, 10 },
   autoScale = true,
@@ -80,6 +81,7 @@ local groupFrames, groupHandles, sideTexts, reservedSlots = {}, {}, {}, {}
 local toolbarHandle
 local layoutToolbar
 local buildError
+local wheelDpad = false -- the wheel is open: D-pad left/right turn its pages
 local yielding = false -- a bag, bank or vendor window is up: the pad binds step aside
 local wheel, wheelPageButton, wheelHeaderButton
 local slices = {}
@@ -339,15 +341,21 @@ local function applyBindings()
   for i = 1, NUM_BUTTONS do
     if buttons[i] then
       buttons[i].HotKey:SetText(hotkeyText(i))
-      setGlyph(buttons[i], padShown and padBase(db.pad[i]) or nil)
+      local shown = padBase(db.pad[i]) or (i <= MAIN_BUTTONS and SLOT_PAD[BUTTON_SLOT[i]]) or nil
+      setGlyph(buttons[i], padShown and shown or nil)
     end
   end
   for k, slot in ipairs(reservedSlots) do
-    setGlyph(slot, padShown and padBase(db.pad[RESERVED_TARGETS[k]]) or nil)
+    local target = RESERVED_TARGETS[k]
+    setGlyph(slot, padShown and (padBase(db.pad[target]) or RESERVED_DEFAULT[target]) or nil)
   end
   if modeButton then modeButton:SetText(MODE_LABEL[db.mode]) end
 
   layoutToolbar()
+  if wheelDpad and wheel and wheel:IsShown() then
+    SetOverrideBindingClick(bindOwner, true, "PADDLEFT", "FlatCrossbarButton1", "LeftButton")
+    SetOverrideBindingClick(bindOwner, true, "PADDRIGHT", "FlatCrossbarButton3", "LeftButton")
+  end
 end
 
 local function setMode(mode)
@@ -535,9 +543,8 @@ local function createButton(i)
   -- the bare D-pad left or right does nothing for that press. The wheel only opens
   -- out of combat, so the button's action can be switched off and back here.
   btn:HookScript("PreClick", function(self, _, down)
-    if InCombatLockdown() then return end
-    local key = db.pad[self.index]
-    local direction = (key == "PADDLEFT" and -1) or (key == "PADDRIGHT" and 1) or nil
+    if InCombatLockdown() or not wheelDpad then return end
+    local direction = (self.index == 1 and -1) or (self.index == 3 and 1) or nil
     if not direction then return end
     local suppress
     if down then
@@ -614,6 +621,75 @@ local function savePoint(frame)
   return { point, "UIParent", relPoint, x, y }
 end
 
+-- Dragging ---------------------------------------------------------------------
+
+-- A bar is moved by hand rather than with StartMoving, so it can snap to the other
+-- bars and the toolbar while it follows the cursor: edge to edge (flush) or lined
+-- up with an edge. Hold Ctrl to drag without snapping; /fcb snap off turns it off.
+local SNAP_DISTANCE = 14
+local SNAP_REACH = 40 -- how far apart two bars can be and still count as neighbours
+local drag
+local dragDriver = CreateFrame("Frame", "FlatCrossbarDragDriver")
+dragDriver:Hide()
+
+local function overlaps(a1, a2, b1, b2)
+  return a1 < b2 + SNAP_REACH and a2 > b1 - SNAP_REACH
+end
+
+local function snapPosition(frame, left, bottom)
+  local width, height = frame:GetWidth(), frame:GetHeight()
+  local bestX, bestY, nearX, nearY = nil, nil, SNAP_DISTANCE, SNAP_DISTANCE
+  local others = { container }
+  for _, gf in ipairs(groupFrames) do others[#others + 1] = gf end
+  for _, other in ipairs(others) do
+    local oLeft, oBottom = other:GetLeft(), other:GetBottom()
+    if other ~= frame and other:IsShown() and oLeft and oBottom then
+      local oRight, oTop = oLeft + other:GetWidth(), oBottom + other:GetHeight()
+      if overlaps(bottom, bottom + height, oBottom, oTop) then
+        -- beside it (flush right, flush left), or the same left or right edge
+        for _, target in ipairs({ oRight, oLeft - width, oLeft, oRight - width }) do
+          local d = math.abs(left - target)
+          if d < nearX then nearX, bestX = d, target end
+        end
+      end
+      if overlaps(left, left + width, oLeft, oRight) then
+        -- on top of it, below it, or the same bottom or top edge
+        for _, target in ipairs({ oTop, oBottom - height, oBottom, oTop - height }) do
+          local d = math.abs(bottom - target)
+          if d < nearY then nearY, bestY = d, target end
+        end
+      end
+    end
+  end
+  return bestX or left, bestY or bottom
+end
+
+dragDriver:SetScript("OnUpdate", function()
+  if not drag then return end
+  local x, y = GetCursorPosition()
+  local scale = drag.frame:GetEffectiveScale()
+  local left, bottom = x / scale - drag.dx, y / scale - drag.dy
+  if db.snap and not IsControlKeyDown() then left, bottom = snapPosition(drag.frame, left, bottom) end
+  drag.frame:ClearAllPoints()
+  drag.frame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+end)
+
+local function beginDrag(frame)
+  if InCombatLockdown() or not frame:GetLeft() then return end
+  local x, y = GetCursorPosition()
+  local scale = frame:GetEffectiveScale()
+  drag = { frame = frame, dx = x / scale - frame:GetLeft(), dy = y / scale - frame:GetBottom() }
+  dragDriver:Show()
+end
+
+-- True if a drag was under way (so the caller saves the new position).
+local function endDrag()
+  local was = drag ~= nil
+  drag = nil
+  dragDriver:Hide()
+  return was
+end
+
 local function restorePosition()
   setPoint(container, db.point)
   for g, gf in ipairs(groupFrames) do
@@ -667,13 +743,9 @@ local function makeHandle(frame, text, onMoved, color)
   local label = h:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   label:SetPoint("CENTER")
   label:SetText(text)
-  h:SetScript("OnDragStart", function()
-    if InCombatLockdown() then return end
-    frame:StartMoving()
-  end)
+  h:SetScript("OnDragStart", function() beginDrag(frame) end)
   h:SetScript("OnDragStop", function()
-    frame:StopMovingOrSizing()
-    onMoved()
+    if endDrag() then onMoved() end
   end)
   return h
 end
@@ -991,10 +1063,23 @@ local function createWheel()
     end)
   end
 
-  wheel:SetScript("OnShow", function() updateAll() end)
+  -- While the wheel is open the D-pad's left and right go to the buttons under
+  -- them (the base bar's first and third), which turn a wheel page instead of acting.
+  wheel:SetScript("OnShow", function()
+    updateAll()
+    if not InCombatLockdown() then
+      wheelDpad = true
+      SetOverrideBindingClick(bindOwner, true, "PADDLEFT", "FlatCrossbarButton1", "LeftButton")
+      SetOverrideBindingClick(bindOwner, true, "PADDRIGHT", "FlatCrossbarButton3", "LeftButton")
+    end
+  end)
   wheel:SetScript("OnHide", function()
     stickWasActive = false
     wheelSel = nil
+    if wheelDpad then
+      wheelDpad = false
+      applyBindings() -- puts the D-pad back (after combat, if it is in combat now)
+    end
   end)
   wheel:SetScript("OnUpdate", aimWithStick)
 
@@ -1113,7 +1198,7 @@ local function createFrames()
 
     -- The label between the D-pad buttons and the face buttons says what to hold,
     -- and is what you drag to move the bar (while unlocked).
-    local mid = CreateFrame("Frame", nil, gf)
+    local mid = CreateFrame("Frame", "FlatCrossbarGroup" .. g .. "Label", gf)
     mid:SetSize(MID_GAP, BUTTON_SIZE)
     mid:SetPoint("TOPLEFT", gf, "TOPLEFT", slotX(4) + BUTTON_SIZE + SPACING, 0)
     mid:RegisterForDrag("LeftButton")
@@ -1124,18 +1209,17 @@ local function createFrames()
     title:SetPoint("CENTER")
     title:SetText(colorCode(GROUP_COLOR[g]) .. name .. "|r")
     mid:SetScript("OnDragStart", function()
-      if db.locked or InCombatLockdown() then return end
-      gf:StartMoving()
+      if db.locked then return end
+      beginDrag(gf)
     end)
     mid:SetScript("OnDragStop", function()
-      gf:StopMovingOrSizing()
-      db.groupPoints[g] = savePoint(gf)
+      if endDrag() then db.groupPoints[g] = savePoint(gf) end
     end)
     mid:SetScript("OnEnter", function(self)
       if db.locked then return end
       GameTooltip:SetOwner(self, "ANCHOR_TOP")
       GameTooltip:SetText(name)
-      GameTooltip:AddLine("Drag to move this bar. /fcb lock to stop.", 1, 1, 1)
+      GameTooltip:AddLine("Drag to move this bar; it snaps to the others (hold Ctrl for no snap). /fcb lock to stop.", 1, 1, 1)
       GameTooltip:Show()
     end)
     mid:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -1218,10 +1302,12 @@ local function copyDefaults(target, defaults)
   end
 end
 
--- Controller defaults: each bar's D-pad and face buttons under its trigger
--- (Base = bare, LT = Shift, RT = Ctrl, LT+RT = both). Only for a fresh set.
+-- Controller defaults. The four crossbar bars and the game's own four buttons are
+-- pressed by the game's own crossbar, which reads LT and RT itself and keeps working
+-- (hidden) underneath these bars, so they get no bind here unless you set one. The
+-- other four bars are bound under Alt and the wheel on L3. Only for a fresh set.
 local function seedReservedDefaults()
-  for target, key in pairs(RESERVED_DEFAULT) do db.pad[target] = key end
+  for target in pairs(RESERVED_DEFAULT) do db.pad[target] = nil end
 end
 
 local function seedPadDefaults(from)
@@ -1230,7 +1316,11 @@ local function seedPadDefaults(from)
     db.pad.wheel = "PADLSTICK" -- L3, pressed in
   end
   for i = from or 1, NUM_BUTTONS do
-    db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]]
+    if i <= MAIN_BUTTONS then
+      db.pad[i] = nil
+    else
+      db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]]
+    end
   end
 end
 
@@ -1318,31 +1408,6 @@ local function toggleKeyLogger()
   end
 end
 
--- LT and RT as Shift and Ctrl -----------------------------------------------------
-
--- The bars are bound under Shift (LT) and Ctrl (RT); the game turns a controller
--- button into those with these settings.
-local EMULATE = { GamePadEmulateShift = "PADLTRIGGER", GamePadEmulateCtrl = "PADRTRIGGER" }
-
-local function cvarValue(name)
-  local ok, value = pcall(GetCVar, name)
-  return ok and value or nil
-end
-
-local function emulationText()
-  return "Shift is " .. tostring(cvarValue("GamePadEmulateShift")) .. " (LT is PADLTRIGGER), Ctrl is "
-    .. tostring(cvarValue("GamePadEmulateCtrl")) .. " (RT is PADRTRIGGER), Alt is "
-    .. tostring(cvarValue("GamePadEmulateAlt"))
-end
-
-local function emulationMismatch()
-  for name, button in pairs(EMULATE) do
-    local value = cvarValue(name)
-    if value and value ~= button then return true end
-  end
-  return false
-end
-
 local function onInterfaceTransition()
   if db and db.mode == "auto" then applyBindings() end
   if db then applyBlizzardVisibility() end
@@ -1352,19 +1417,40 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 -- Fading the other bars --------------------------------------------------------
 
--- Which bar the held modifiers pick: 1 none, 2 LT (Shift), 3 RT (Ctrl), 4 both,
--- 5 LB (Alt), 6 RB (Alt+Ctrl), 7 LT x2 (Alt+Shift), 8 RT x2 (Alt+Ctrl+Shift).
+-- The triggers arrive as the buttons PADLTRIGGER and PADRTRIGGER; a frame that passes
+-- keys through sees them go down and up without taking them from the game.
+local triggerDown = { lt = false, rt = false }
+local triggerWatch = CreateFrame("Frame", "FlatCrossbarTriggerWatch", UIParent)
+triggerWatch:SetSize(1, 1)
+triggerWatch:SetPoint("CENTER")
+triggerWatch:EnableKeyboard(true)
+if triggerWatch.EnableGamePadButton then triggerWatch:EnableGamePadButton(true) end
+triggerWatch:SetPropagateKeyboardInput(true)
+local function watchTrigger(down)
+  return function(_, key)
+    if key == "PADLTRIGGER" then
+      triggerDown.lt = down
+    elseif key == "PADRTRIGGER" then
+      triggerDown.rt = down
+    end
+  end
+end
+triggerWatch:SetScript("OnGamePadButtonDown", watchTrigger(true))
+triggerWatch:SetScript("OnGamePadButtonUp", watchTrigger(false))
+
+-- Which bar is in use: 1 none, 2 LT, 3 RT, 4 both triggers, then the Alt bars Steam
+-- Input sends: 5 LB (Alt), 6 RB (Alt+Ctrl), 7 LT x2 (Alt+Shift), 8 RT x2 (Alt+Ctrl+Shift).
 local function activeGroup()
-  local shift, ctrl, alt = IsShiftKeyDown(), IsControlKeyDown(), IsAltKeyDown()
-  if alt then
+  if IsAltKeyDown() then
+    local shift, ctrl = IsShiftKeyDown(), IsControlKeyDown()
     if ctrl and shift then return 8 end -- RT x2
     if ctrl then return 6 end -- RB
     if shift then return 7 end -- LT x2
     return 5 -- LB
   end
-  if shift and ctrl then return 4 end
-  if shift then return 2 end
-  if ctrl then return 3 end
+  if triggerDown.lt and triggerDown.rt then return 4 end
+  if triggerDown.lt then return 2 end
+  if triggerDown.rt then return 3 end
   return 1
 end
 
@@ -1420,12 +1506,17 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
       if db.pad.wheel == nil then db.pad.wheel = "PADLSTICK" end
       db.wheelSeeded = true
     end
-    if not db.reservedSeeded then
-      -- Saves from before the game's four buttons could be bound: their usual keys.
-      for target, key in pairs(RESERVED_DEFAULT) do
-        if db.pad[target] == nil then db.pad[target] = key end
+    if not db.nativeScheme then
+      -- The crossbar bars are pressed by the game's own crossbar now: drop the old
+      -- default binds (Shift/Ctrl on the D-pad and face buttons) that covered it.
+      local old = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-" }
+      for i = 1, MAIN_BUTTONS do
+        if db.pad[i] == old[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]] then db.pad[i] = nil end
       end
-      db.reservedSeeded = true
+      for target, key in pairs(RESERVED_DEFAULT) do
+        if db.pad[target] == key then db.pad[target] = nil end
+      end
+      db.nativeScheme = true
     end
     if (db.extraSeedVersion or 0) < 3 then
       -- Saves from before the shoulder bars: give the buttons without a bind their defaults.
@@ -1468,10 +1559,6 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     applyBlizzardVisibility()
     if db.autoMacros then ensureMacros() end
     if wheelNotice then print_(wheelNotice) end
-    if emulationMismatch() then
-      print_("LT and RT aren't set up as Shift and Ctrl yet, which the bars need. Type /fcb emulate to set them ("
-        .. emulationText() .. ").")
-    end
   elseif event == "PLAYER_REGEN_DISABLED" then
     wheel:Hide()
   elseif event == "PLAYER_REGEN_ENABLED" then
@@ -1513,7 +1600,7 @@ local HELP = {
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
   "/fcb wheelbars 7 8 9 10 - the keyboard action bars the wheel uses (not the crossbar's)",
-  "/fcb emulate - make LT act as Shift and RT as Ctrl, which the bars are bound under",
+  "/fcb snap [on|off] - snap bars to each other while you drag them (hold Ctrl to skip once)",
   "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
   "/fcb fade [on|off|0-1] - dim the other bars while one is held (LT, RT, LB, RB)",
   "/fcb macros [create|on|off] - the FCB Tab Enemy / FCB Tab Friend macros (made on login if missing)",
@@ -1537,7 +1624,6 @@ SlashCmdList.FLATCROSSBAR = function(input)
       .. (wheelSlots[1] and (" (" .. wheelSlots[1] .. "-" .. wheelSlots[#wheelSlots] .. ")") or "")
       .. ", crossbar storage starts at " .. tostring(C_GamepadUI and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex
         and C_GamepadUI.GetFirstGamepadActionStorageSlotIndex()))
-    print_("modifiers: " .. emulationText())
     print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", groups: " .. #groupFrames .. ", locked: " .. tostring(db.locked))
     print_("input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode() .. ", stepping aside: " .. tostring(yielding))
     if container then
@@ -1644,10 +1730,9 @@ SlashCmdList.FLATCROSSBAR = function(input)
     print_("wheel actions from action bars " .. table.concat(db.wheelBars, ", ") .. " (" .. #wheelSlots .. " slots, "
       .. WHEEL_PAGES .. " pages). /fcb wheelbars 7 8 9 10 to change.")
     if wheelNotice then print_(wheelNotice) end
-  elseif cmd == "emulate" then
-    if InCombatLockdown() then return print_("can't change settings in combat.") end
-    for name, button in pairs(EMULATE) do pcall(SetCVar, name, button) end
-    print_("set: " .. emulationText())
+  elseif cmd == "snap" then
+    if arg == "on" then db.snap = true elseif arg == "off" then db.snap = false else db.snap = not db.snap end
+    print_("snapping " .. (db.snap and "on" or "off"))
   elseif cmd == "keys" then
     toggleKeyLogger()
   elseif cmd == "macros" then

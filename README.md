@@ -57,9 +57,10 @@ Each of the crossbar's bars is a single row of 8 buttons with no frame around it
 
 While you hold LT, RT, LB or RB (as Shift, Ctrl or Alt) in controller mode, the other bars fade so the active one stands out. `/fcb fade off` turns that off; `/fcb fade 0.5` sets how dim they get.
 
-On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for Base, with Shift for LT, Ctrl for RT and both for LT+RT. This follows the key-modifier convention ClassicConsoleGamepadUI uses for the triggers and has not been checked against the real client.
+The four crossbar bars (Base, LT, RT, LT+RT) are pressed by the game's own crossbar. It reads LT and RT itself (they arrive as `PADLTRIGGER` and `PADRTRIGGER`), so the D-pad and face buttons already do the right thing for each bar, in combat too, and this addon keeps that crossbar hidden underneath. The bars here show the same actions, can be clicked and dragged to, and fade the bars you are not holding. They get no controller bind of their own unless you set one with `/fcb bind`. The other four bars (LB, RB, LT x2, RT x2) are bound under Alt, which Steam Input sends, and the wheel is on L3.
 
 - `/fcb unlock` lights up the label in the middle of each bar so you can drag it, and shows the toolbar's strip. `/fcb lock` turns both off.
+- While you drag, a bar snaps to the others and the toolbar: flush against a side, or lined up with an edge, once it is within a few pixels. Hold Ctrl while dragging to skip it once, or turn it off with `/fcb snap off` (`/fcb snap on` brings it back).
 - `/fcb helper [on|off]` shows or hides the labels (the drag area stays).
 - `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle and Bind buttons.
 - `/fcb resetpos` puts the bars and toolbar back in their default spots.
@@ -118,10 +119,8 @@ The wheel is bound to L3 (press the left stick in) by default: hold it to open t
 
 Not checked in the real client: that L3 arrives as `PADLSTICK`, and that the D-pad press is swallowed cleanly while the wheel is open.
 
-## What the wheel holds, and LT / RT as modifiers
+## What the wheel holds
 
 The wheel does not use the crossbar's slots. It reads the normal keyboard and mouse action bars, **7 to 10** by default (48 slots, 6 pages of 8). Fill those bars the usual way (turn them on in the action bar settings), or drop an action straight onto a wheel slice. `/fcb wheelbars 6 7 8` picks other bars. Any slot that would fall in the crossbar's own storage is skipped, with a warning.
 
-The bars are bound under Shift (LT) and Ctrl (RT). The game turns a controller button into those with two settings, and a fresh install can have Ctrl on the left bumper instead of RT. `/fcb emulate` sets `GamePadEmulateShift` to `PADLTRIGGER` and `GamePadEmulateCtrl` to `PADRTRIGGER`; at login the addon says so if they differ. `/fcb status` shows the current values. The Alt setting is left alone (the LB bar is Alt, which Steam Input can send).
-
-Not checked in the real client: the action slot numbers for bars 9 and 10, and that these two settings exist on Forever as they do on Retail.
+Not checked in the real client: the action slot numbers for bars 9 and 10.

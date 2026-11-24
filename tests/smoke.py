@@ -52,6 +52,9 @@ function Stub.CreateMaskTexture(self) return newStub('Mask') end
 function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
+function Stub.GetLeft() return 100 end
+function Stub.GetBottom() return 50 end
+GetCursorPosition = function() return 130, 70 end
 function Stub.SetAlpha(self, v) self.__alpha = v end
 function Stub.GetAlpha(self) return rawget(self, '__alpha') or 1 end
 function Stub.GetWidth() return 100 end
@@ -228,10 +231,11 @@ note('jump bind now: ' .. tostring(FlatCrossbarDB.pad.jump) .. ', default others
 try('global wheel page next', FlatCrossbar_WheelPage, 1)
 try('global wheel page prev', FlatCrossbar_WheelPage, -1)
 -- the bars fade while LT is held
-IsShiftKeyDown = function() return true end
+local watch = G.FlatCrossbarTriggerWatch
+watch.__scripts.OnGamePadButtonDown(watch, 'PADLTRIGGER')
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with LT held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()) .. ' RT=' .. string.format('%.2f', G.FlatCrossbarGroup3:GetAlpha()))
-IsShiftKeyDown = function() return false end
+watch.__scripts.OnGamePadButtonUp(watch, 'PADLTRIGGER')
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with nothing held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
 try('/fcb fade 0.5', slash, 'fade 0.5')
@@ -251,8 +255,20 @@ try('/fcb keys off', slash, 'keys')
 try('/fcb wheelbars', slash, 'wheelbars')
 try('/fcb wheelbars 6 7', slash, 'wheelbars 6 7')
 try('/fcb wheelbars 7 8 9 10', slash, 'wheelbars 7 8 9 10')
-try('/fcb emulate', slash, 'emulate')
-note('ctrl emulated by: ' .. tostring(cvars.GamePadEmulateCtrl))
+note('main bar binds: pad[1]=' .. tostring(FlatCrossbarDB.pad[1]) .. ' pad[9]=' .. tostring(FlatCrossbarDB.pad[9]) .. ' jump=' .. tostring(FlatCrossbarDB.pad.jump) .. ' pad[29]=' .. tostring(FlatCrossbarDB.pad[29]))
+try('/fcb unlock (drag test)', slash, 'unlock')
+local mid = G.FlatCrossbarGroup2Label
+local driver = G.FlatCrossbarDragDriver
+try('drag start', mid.__scripts.OnDragStart, mid)
+try('drag update (snap on)', driver.__scripts.OnUpdate, driver, 0.02)
+try('drag stop', mid.__scripts.OnDragStop, mid)
+note('saved bar position: ' .. tostring(FlatCrossbarDB.groupPoints[2] and FlatCrossbarDB.groupPoints[2][1]))
+try('/fcb snap off', slash, 'snap off')
+try('drag start (snap off)', mid.__scripts.OnDragStart, mid)
+try('drag update (snap off)', driver.__scripts.OnUpdate, driver, 0.02)
+try('drag stop (snap off)', mid.__scripts.OnDragStop, mid)
+try('/fcb snap on', slash, 'snap')
+note('snap now: ' .. tostring(FlatCrossbarDB.snap))
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')
