@@ -81,3 +81,14 @@ Not checked in the real client: that Alt, Alt+Ctrl and Alt+Shift are free in the
 ## Tab-target macros
 
 On login the addon makes two account macros if they are missing: **FCB Tab Enemy** (`/targetenemy`) and **FCB Tab Friend** (`/targetfriendplayer`). Open `/macro` and drag them onto any button. Their icon is a question mark; change it in the macro window. `/fcb macros` makes them now, `/fcb macros off` stops them being made on login, and `/fcb macros on` turns it back on. I have not checked that these two slash commands exist on Forever.
+
+## With BagPad Forever
+
+BagPad Forever restyles the game's own bag and bank windows and uses the D-pad, face buttons, LB and RB inside them. This addon's controller binds sit on those same buttons, so while a bag, bank, vendor, mail or trade window is open the controller binds step aside (keyboard binds are not touched) and come back when it closes. Out of combat only; in combat the change waits for combat to end.
+
+- `/fcb yield off` turns this off; `/fcb yield on` turns it back on.
+- If BagPad (or another addon) uses a window with its own name, add it: `/fcb yield add FrameName`, `/fcb yield remove FrameName`, `/fcb yield` to list. `/fcb status` shows whether the binds are stepping aside.
+
+The two addons share no frame names, slash commands or globals (`/bp` and `/bagpad` vs `/fcb` and `/flatcrossbar`), and BagPad's list of conflicting bag addons does not include this one. I could not read BagPad's source (it has no public repository), so this is based on its CurseForge page and has not been tried with it installed.
+
+One conflict that is not fixable in the addon: the shoulder bars need Steam Input to send Alt for LB and Alt+Ctrl for RB, so the game never sees LB/RB while that is on, and BagPad's LB (compare gear) and RB (DataPad) will not work. Either turn that Steam Input layer off while using BagPad, or put it on an action layer you switch to.

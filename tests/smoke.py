@@ -85,7 +85,8 @@ GetCursorInfo = function() return nil end
 PickupAction = function() end
 PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
-SetOverrideBindingClick = function(owner, pri, key, name, btn) note(('bind %s -> %s:%s'):format(key, name, btn)) end
+BINDS = 0
+SetOverrideBindingClick = function(owner, pri, key, name, btn) BINDS = BINDS + 1; note(('bind %s -> %s:%s'):format(key, name, btn)) end
 ActionButton_ApplyCooldown = nil
 local macros = {}
 GetMacroIndexByName = function(n) return macros[n] and 1 or 0 end
@@ -194,6 +195,19 @@ try('/fcb show', slash, 'show')
 try('/fcb resetpos', slash, 'resetpos')
 try('/fcb macros', slash, 'macros')
 try('/fcb macros off', slash, 'macros off')
+-- a bag window opens: the pad binds step aside, then come back
+try('/fcb mode controller', slash, 'mode controller')
+local live = BINDS
+G.ContainerFrame1 = newStub('Frame', 'ContainerFrame1')
+events.__scripts.OnUpdate(events, 1)
+local before = BINDS
+note('binds applied while a bag is open: ' .. tostring(BINDS - live))
+G.ContainerFrame1:Hide()
+events.__scripts.OnUpdate(events, 1)
+note('binds applied after the bag closes: ' .. tostring(BINDS - before))
+try('/fcb yield add MyBagFrame', slash, 'yield add MyBagFrame')
+try('/fcb yield', slash, 'yield')
+try('/fcb yield remove MyBagFrame', slash, 'yield remove MyBagFrame')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

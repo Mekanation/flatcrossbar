@@ -48,6 +48,8 @@ local DEFAULTS = {
   helper = true,
   hideButtons = false,
   autoMacros = true,
+  yield = true,
+  yieldFrames = {},
   groupPoints = {},
   scale = 1,
   page = 1,
@@ -76,6 +78,7 @@ local groupFrames, groupHandles, sideTexts, reservedSlots = {}, {}, {}, {}
 local toolbarHandle
 local layoutToolbar
 local buildError
+local yielding = false -- a bag, bank or vendor window is up: the pad binds step aside
 local securePaging = true
 
 -- Secure handler frames get SetFrameRef from their template; fall back to the
@@ -235,12 +238,16 @@ local function applyBindings()
   pendingBindings = false
   ClearOverrideBindings(bindOwner)
   local mode = effectiveMode()
+  -- The controller binds are the D-pad, face buttons and triggers: while a bag or
+  -- vendor window (BagPad Forever restyles the game's own bag windows) uses them to
+  -- move around, ours would take them, so they step aside until it closes.
+  local padLive = (mode == "controller" or mode == "both") and not yielding
   for i = 1, NUM_BUTTONS do
     local name = "FlatCrossbarButton" .. i
     if mode == "keyboard" or mode == "both" then
       if db.kb[i] then SetOverrideBindingClick(bindOwner, true, db.kb[i], name, "LeftButton") end
     end
-    if mode == "controller" or mode == "both" then
+    if padLive then
       if db.pad[i] then SetOverrideBindingClick(bindOwner, true, db.pad[i], name, "LeftButton") end
     end
   end
@@ -248,7 +255,7 @@ local function applyBindings()
     if (mode == "keyboard" or mode == "both") and not t[4] then
       if db.kb[name] then SetOverrideBindingClick(bindOwner, true, db.kb[name], t[1], t[2]) end
     end
-    if mode == "controller" or mode == "both" then
+    if padLive then
       if db.pad[name] then SetOverrideBindingClick(bindOwner, true, db.pad[name], t[1], t[2]) end
     end
   end
@@ -1071,6 +1078,27 @@ local function ensureMacros()
   end
 end
 
+-- Windows that use the controller's own buttons ----------------------------------
+
+local YIELD_FRAMES = { "ContainerFrameCombinedBags", "BankFrame", "MerchantFrame", "MailFrame", "TradeFrame" }
+for i = 1, 13 do YIELD_FRAMES[#YIELD_FRAMES + 1] = "ContainerFrame" .. i end
+
+local function frameShown(name)
+  local frame = _G[name]
+  return frame and frame.IsShown and frame:IsShown() and true or false
+end
+
+local function anyYieldFrameShown()
+  if not db.yield then return false end
+  for _, name in ipairs(YIELD_FRAMES) do
+    if frameShown(name) then return true end
+  end
+  for _, name in ipairs(db.yieldFrames) do
+    if frameShown(name) then return true end
+  end
+  return false
+end
+
 local function onInterfaceTransition()
   if db and db.mode == "auto" then applyBindings() end
   if db then applyBlizzardVisibility() end
@@ -1078,6 +1106,18 @@ end
 
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
+local yieldElapsed = 0
+events:SetScript("OnUpdate", function(_, elapsed)
+  yieldElapsed = yieldElapsed + elapsed
+  if yieldElapsed < 0.25 or not db or not container then return end
+  yieldElapsed = 0
+  local now = anyYieldFrameShown()
+  if now ~= yielding then
+    yielding = now
+    applyBindings()
+  end
+end)
+
 events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
   if event == "ADDON_LOADED" then
     if arg1 ~= ADDON then return end
@@ -1155,6 +1195,7 @@ local HELP = {
   "/fcb helper [on|off] - the combo text beside each bar (LT +, RT + ...)",
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
+  "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
   "/fcb macros [create|on|off] - the FCB Tab Enemy / FCB Tab Friend macros (made on login if missing)",
   "/fcb scale N - bar scale",
   "/fcb unlock | lock - show / hide the drag handles (hold Shift to drag actions off a locked bar)",
@@ -1173,7 +1214,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
     print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", groups: " .. #groupFrames .. ", locked: " .. tostring(db.locked))
-    print_("secure paging: " .. tostring(securePaging) .. "; input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode())
+    print_("secure paging: " .. tostring(securePaging) .. "; input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode() .. ", stepping aside: " .. tostring(yielding))
     if container then
       local parent = container:GetParent()
       print_(string.format("shown %s, visible %s, parent %s (shown %s), size %.0fx%.0f, scale %.2f, alpha %.2f, strata %s",
@@ -1240,6 +1281,25 @@ SlashCmdList.FLATCROSSBAR = function(input)
   elseif cmd == "page" then
     local n = tonumber(arg)
     if n then applyPage(n) else print_("/fcb page 1-" .. NUM_PAGES) end
+  elseif cmd == "yield" then
+    local sub_, name = input:match("^%s*%S*%s*(%S*)%s*(.-)%s*$")
+    sub_ = sub_:lower()
+    if sub_ == "on" or sub_ == "off" then
+      db.yield = (sub_ == "on")
+    elseif sub_ == "add" and name ~= "" then
+      for _, existing in ipairs(db.yieldFrames) do
+        if existing == name then name = "" end
+      end
+      if name ~= "" then db.yieldFrames[#db.yieldFrames + 1] = name end
+    elseif sub_ == "remove" and name ~= "" then
+      for i = #db.yieldFrames, 1, -1 do
+        if db.yieldFrames[i] == name then table.remove(db.yieldFrames, i) end
+      end
+    end
+    print_("pad binds step aside for windows: " .. (db.yield and "on" or "off")
+      .. (#db.yieldFrames > 0 and (", extra frames: " .. table.concat(db.yieldFrames, ", ")) or "")
+      .. (yielding and " (stepping aside now)" or ""))
+    if not (sub_ == "list" or sub_ == "") then applyBindings() end
   elseif cmd == "macros" then
     if arg == "on" then db.autoMacros = true elseif arg == "off" then db.autoMacros = false end
     if InCombatLockdown() then return print_("can't make macros in combat.") end
