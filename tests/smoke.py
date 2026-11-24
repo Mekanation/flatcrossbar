@@ -52,6 +52,9 @@ function Stub.CreateMaskTexture(self) return newStub('Mask') end
 function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
+function Stub.IsVisible(self) return self.__shown end
+TIME = 0
+GetTime = function() return TIME end
 function Stub.GetLeft() return 100 end
 function Stub.GetBottom() return 50 end
 GetCursorPosition = function() return 130, 70 end
@@ -317,6 +320,23 @@ note('panels in keyboard mode with hidekb off: bars=' .. tostring(G.FlatCrossbar
 try('/fcb hidekb on', slash, 'hidekb on')
 try('/fcb mode controller (panels)', slash, 'mode controller')
 note('panels in controller mode: bars=' .. tostring(G.FlatCrossbarGroup1:IsShown()) .. ' toolbar=' .. tostring(G.FlatCrossbarFrame:IsShown()))
+-- a ForeverMail window opens: the pad binds step aside, then return
+try('/fcb mode controller (mail)', slash, 'mode controller')
+events.__scripts.OnUpdate(events, 1)
+local mailBefore = BINDS
+local mailWindow = newStub('Frame', 'ForeverMailMain')
+mailWindow.GetWidth = function() return 600 end
+G.ForeverMailMain = mailWindow
+TIME = TIME + 10
+events.__scripts.OnUpdate(events, 1)
+note('binds applied while a ForeverMail window is open: ' .. tostring(BINDS - mailBefore))
+mailWindow:Hide()
+TIME = TIME + 10
+events.__scripts.OnUpdate(events, 1)
+note('binds applied after it closes: ' .. tostring(BINDS - mailBefore))
+G.ForeverMailMain = nil
+TIME = TIME + 10
+events.__scripts.OnUpdate(events, 1)
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

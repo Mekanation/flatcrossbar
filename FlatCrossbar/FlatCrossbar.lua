@@ -1442,6 +1442,46 @@ local function frameShown(name)
   return frame and frame.IsShown and frame:IsShown() and true or false
 end
 
+-- Windows from other addons whose frame names are not known (ForeverMail replaces the
+-- mailbox with its own): any large top-level frame whose name starts with one of these
+-- counts as a window. /fcb yield add Name* adds a prefix of your own.
+local YIELD_PREFIXES = { "ForeverMail" }
+local prefixFrames, prefixScannedAt = {}, -100
+
+local function scanPrefixFrames()
+  local prefixes = {}
+  for _, prefix in ipairs(YIELD_PREFIXES) do prefixes[#prefixes + 1] = prefix end
+  for _, name in ipairs(db.yieldFrames) do
+    if name:sub(-1) == "*" then prefixes[#prefixes + 1] = name:sub(1, -2) end
+  end
+  wipe(prefixFrames)
+  for name, value in pairs(_G) do
+    if type(name) == "string" and type(value) == "table" then
+      for _, prefix in ipairs(prefixes) do
+        if name:sub(1, #prefix) == prefix then
+          prefixFrames[#prefixFrames + 1] = value
+          break
+        end
+      end
+    end
+  end
+end
+
+local function prefixWindowShown()
+  local now = GetTime()
+  if now - prefixScannedAt > 3 then
+    prefixScannedAt = now
+    scanPrefixFrames()
+  end
+  for _, frame in ipairs(prefixFrames) do
+    local ok, shown = pcall(function()
+      return frame:GetParent() == UIParent and frame:IsVisible() and frame:GetWidth() >= 150
+    end)
+    if ok and shown then return true end
+  end
+  return false
+end
+
 local function anyYieldFrameShown()
   if not db.yield then return false end
   for _, name in ipairs(YIELD_FRAMES) do
@@ -1450,7 +1490,7 @@ local function anyYieldFrameShown()
   for _, name in ipairs(db.yieldFrames) do
     if frameShown(name) then return true end
   end
-  return false
+  return prefixWindowShown()
 end
 
 -- Key log ----------------------------------------------------------------------
@@ -1727,7 +1767,7 @@ local HELP = {
   "/fcb helper [on|off] - the label (LT, RT ...) between each bar's D-pad and face buttons",
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
-  "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
+  "/fcb yield [on|off] | add FrameName (or Prefix*) | remove FrameName | list - pad binds step aside while a bag, bank, vendor or mail window is open",
   "/fcb wheelbars 6 7 8 - the keyboard action bars the wheel uses (not the crossbar's)",
   "/fcb hidekb [on|off] - hide the bars and toolbar in keyboard mode (the game's own bars are used there)",
   "/fcb snap [on|off] - snap bars to each other while you drag them (hold Ctrl to skip once)",

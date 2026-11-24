@@ -134,3 +134,9 @@ While the wheel is open the pad's camera speeds (`GamePadCameraYawSpeed` and `Ga
 ## What is shared between characters
 
 How the bars look and behave is the same for every character: where each bar sits, the scale, lock, snapping, fade, the labels, the hidden toolbar buttons, whether the bars hide in keyboard mode, and which action bars the wheel uses. It is saved account-wide in `FlatCrossbarAccountDB`. Keybinds (`/fcb bind`), the keyboard/controller mode and the wheel's current page stay per character in `FlatCrossbarDB`. The first character you log in with after this change hands its layout to the account; the others pick it up. To sync a layout to another machine, copy `WTF/Account/<ACCOUNT>/SavedVariables/FlatCrossbar.lua`.
+
+## With ForeverMail
+
+ForeverMail replaces the mailbox with its own window and hides the game's, so the mail window check alone would not see it. While a large top-level window whose name starts with `ForeverMail` is showing, the controller binds step aside, as for the bags. `/fcb yield add Prefix*` adds another prefix, and `/fcb yield add FrameName` an exact frame. `/fcb status` shows whether the binds are stepping aside.
+
+One thing the addon cannot fix: if Steam Input sends Alt for LB and Alt+Ctrl for RB (for the extra bars), the game never sees the bumpers, so any window that uses LB and RB (tabs, for example) cannot use them. Put the bumper bars on a Steam Input action layer you switch off in such windows, or use `/fcb keys` with the window open to see what arrives.
