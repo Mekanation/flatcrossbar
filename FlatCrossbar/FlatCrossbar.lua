@@ -58,7 +58,7 @@ local DEFAULTS = {
   page = 1,
   wheelPage = 1,
   wheelScale = 1,
-  locked = false,
+  locked = true,
   hideBlizzard = true,
   point = { "BOTTOM", "UIParent", "BOTTOM", 0, 135 },
 }
@@ -1454,7 +1454,7 @@ local function activeGroup()
   return 1
 end
 
-local fadeActive, fadeElapsed = 1, 0
+local fadeActive, fadeElapsed = nil, 0 -- nil: nothing fades
 local fader = CreateFrame("Frame", "FlatCrossbarFader")
 fader:SetScript("OnUpdate", function(_, elapsed)
   if not db or #groupFrames == 0 then return end
@@ -1462,12 +1462,15 @@ fader:SetScript("OnUpdate", function(_, elapsed)
   if fadeElapsed >= 0.05 then
     fadeElapsed = 0
     local mode = effectiveMode()
-    local live = db.fade and (mode == "controller" or mode == "both") and not (bindCapture and bindCapture:IsShown())
-    fadeActive = live and activeGroup() or 1
+    -- In controller mode the bar in use has the focus (Base when nothing is held) and
+    -- the others fade. While unlocked every bar stays clear so they can be arranged.
+    local live = db.fade and db.locked and (mode == "controller" or mode == "both")
+      and not (bindCapture and bindCapture:IsShown())
+    fadeActive = live and activeGroup() or nil
   end
   local k = math.min(1, elapsed * 14)
   for g, gf in ipairs(groupFrames) do
-    local target = (fadeActive == 1 or fadeActive == g) and 1 or db.fadeAlpha
+    local target = (not fadeActive or fadeActive == g) and 1 or db.fadeAlpha
     local alpha = gf:GetAlpha()
     gf:SetAlpha(math.abs(target - alpha) < 0.01 and target or alpha + (target - alpha) * k)
   end
@@ -1602,7 +1605,7 @@ local HELP = {
   "/fcb wheelbars 7 8 9 10 - the keyboard action bars the wheel uses (not the crossbar's)",
   "/fcb snap [on|off] - snap bars to each other while you drag them (hold Ctrl to skip once)",
   "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
-  "/fcb fade [on|off|0-1] - dim the other bars while one is held (LT, RT, LB, RB)",
+  "/fcb fade [on|off|0-1] - the bar in use has the focus (Base when no trigger is held) and the others dim; only while locked",
   "/fcb macros [create|on|off] - the FCB Tab Enemy / FCB Tab Friend macros (made on login if missing)",
   "/fcb scale N|auto - bar scale (auto fits the screen)",
   "/fcb unlock | lock - drag a bar by the label between its D-pad and face buttons (hold Shift to drag actions off a locked bar)",

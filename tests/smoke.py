@@ -231,13 +231,19 @@ note('jump bind now: ' .. tostring(FlatCrossbarDB.pad.jump) .. ', default others
 try('global wheel page next', FlatCrossbar_WheelPage, 1)
 try('global wheel page prev', FlatCrossbar_WheelPage, -1)
 -- the bars fade while LT is held
+try('/fcb lock (for the fade)', slash, 'lock')
 local watch = G.FlatCrossbarTriggerWatch
+for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
+note('alpha with nothing held (locked): base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
 watch.__scripts.OnGamePadButtonDown(watch, 'PADLTRIGGER')
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with LT held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()) .. ' RT=' .. string.format('%.2f', G.FlatCrossbarGroup3:GetAlpha()))
 watch.__scripts.OnGamePadButtonUp(watch, 'PADLTRIGGER')
 for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
 note('alpha with nothing held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
+try('/fcb unlock (after the fade)', slash, 'unlock')
+for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
+note('alpha while unlocked: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
 try('/fcb fade 0.5', slash, 'fade 0.5')
 try('/fcb scale auto', slash, 'scale auto')
 -- glyphs: the game's icons, then the letter and arrow fallback
