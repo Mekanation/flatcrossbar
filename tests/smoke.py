@@ -94,7 +94,7 @@ BINDS = 0
 STYLE = 1
 Enum = { InputDeviceInterfaceType = { MouseKeyboard = 1, Gamepad = 2 } }
 C_InputInterfaceStyle = { GetCurrentStyle = function() return STYLE end }
-local cvars = { GamePadEmulateShift = 'PADLTRIGGER', GamePadEmulateCtrl = 'PADLSHOULDER', GamePadEmulateAlt = 'NONE' }
+local cvars = { GamePadEmulateShift = 'PADLTRIGGER', GamePadEmulateCtrl = 'PADLSHOULDER', GamePadEmulateAlt = 'NONE', GamePadCameraYawSpeed = '1.5', GamePadCameraPitchSpeed = '1' }
 GetCVar = function(n) return cvars[n] end
 SetCVar = function(n, v) cvars[n] = v end
 InputIconTextureSetUtility = { GetNormalActiveInputIconButtonTexture = function(k) return 'atlas-' .. k end }
@@ -180,6 +180,7 @@ try('wheel press', function()
   for _, h in ipairs(wbtn.__hooks.PreClick or {}) do h(wbtn, 'LeftButton', true) end
 end)
 note('wheel open after press: ' .. tostring(wheel:IsShown()))
+note('camera speed while the wheel is open: ' .. tostring(cvars.GamePadCameraYawSpeed) .. ' / ' .. tostring(cvars.GamePadCameraPitchSpeed) .. ', saved: ' .. tostring(FlatCrossbarDB.wheelSavedCamera and FlatCrossbarDB.wheelSavedCamera.GamePadCameraYawSpeed))
 local b3 = G.FlatCrossbarButton3
 local pageBefore = FlatCrossbarDB.wheelPage
 for _, h in ipairs(b3.__hooks.PreClick or {}) do h(b3, 'LeftButton', true) end
@@ -194,6 +195,7 @@ try('wheel release', function()
   for _, h in ipairs(wbtn.__hooks.PreClick or {}) do h(wbtn, 'LeftButton', false) end
 end)
 note('wheel open after release: ' .. tostring(wheel:IsShown()) .. ', attrs kept for click: ' .. tostring(wbtn:GetAttribute('type')))
+note('camera speed after the wheel closes: ' .. tostring(cvars.GamePadCameraYawSpeed) .. ' / ' .. tostring(cvars.GamePadCameraPitchSpeed) .. ', saved left: ' .. tostring(FlatCrossbarDB.wheelSavedCamera))
 try('wheel post-click', function()
   for _, h in ipairs(wbtn.__hooks.PostClick or {}) do h(wbtn, 'LeftButton', false) end
 end)

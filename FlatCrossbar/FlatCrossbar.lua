@@ -926,6 +926,32 @@ end
 
 local wheelSel -- slice being aimed at, or nil
 
+-- The right stick aims the wheel, and it is also the camera stick, so while the wheel
+-- is open the pad's camera speeds are set to 0 (the movement stick keeps walking).
+-- The speeds the player had are kept in the saved variables meanwhile, so a crash or a
+-- logout never leaves the camera still.
+local CAMERA_CVARS = { "GamePadCameraYawSpeed", "GamePadCameraPitchSpeed" }
+local cameraHeld = false
+
+local function suspendCamera(on)
+  if on then
+    if cameraHeld then return end
+    local saved, any = {}, false
+    for _, name in ipairs(CAMERA_CVARS) do
+      local ok, value = pcall(GetCVar, name)
+      if ok and value ~= nil then saved[name] = tostring(value); any = true end
+    end
+    if not any then return end
+    db.wheelSavedCamera = saved
+    for name in pairs(saved) do pcall(SetCVar, name, "0") end
+    cameraHeld = true
+  elseif cameraHeld or db.wheelSavedCamera then
+    for name, value in pairs(db.wheelSavedCamera or {}) do pcall(SetCVar, name, value) end
+    db.wheelSavedCamera = nil
+    cameraHeld = false
+  end
+end
+
 -- The wheel's actions are not the crossbar's: they sit on the normal keyboard and
 -- mouse action bars (7-10 by default), so the two never share a slot. Action slot
 -- ranges per bar, from the pages in Blizzard_ActionBar's MultiActionBars: bar 2 is
@@ -1122,6 +1148,7 @@ local function createWheel()
   -- them (the base bar's first and third), which turn a wheel page instead of acting.
   wheel:SetScript("OnShow", function()
     updateAll()
+    suspendCamera(true)
     if not InCombatLockdown() then
       wheelDpad = true
       SetOverrideBindingClick(bindOwner, true, "PADDLEFT", "FlatCrossbarButton1", "LeftButton")
@@ -1131,6 +1158,7 @@ local function createWheel()
   wheel:SetScript("OnHide", function()
     stickWasActive = false
     wheelSel = nil
+    suspendCamera(false)
     if wheelDpad then
       wheelDpad = false
       applyBindings() -- puts the D-pad back (after combat, if it is in combat now)
@@ -1621,6 +1649,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     end
   elseif event == "PLAYER_ENTERING_WORLD" then
     applyActions()
+    if db.wheelSavedCamera and not (wheel and wheel:IsShown()) then suspendCamera(false) end -- left at 0 by a session that ended badly
     applyBindings()
     applyBlizzardVisibility()
     if db.autoMacros then ensureMacros() end

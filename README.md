@@ -128,3 +128,5 @@ Not checked in the real client: that L3 arrives as `PADLSTICK`, and that the D-p
 The wheel does not use the crossbar's slots. It reads the normal keyboard and mouse action bars, **6 to 8** by default (36 slots, 5 pages of 8, the last one half full). Fill those bars the usual way (turn them on in the action bar settings), or drop an action straight onto a wheel slice. `/fcb wheelbars 7 8` picks other bars. Any slot that would fall in the crossbar's own storage is skipped, with a warning.
 
 The slot numbers come from the game's own action bar pages (bar 6 is slots 145-156, 7 is 157-168, 8 is 169-180).
+
+While the wheel is open the pad's camera speeds (`GamePadCameraYawSpeed` and `GamePadCameraPitchSpeed`) are set to 0 so aiming with the right stick does not turn the camera; your values are kept in the saved variables and put back when the wheel closes (and at login if the game ended badly in between). The movement stick keeps walking. Not checked in the real client.
