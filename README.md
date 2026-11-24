@@ -92,3 +92,14 @@ BagPad Forever restyles the game's own bag and bank windows and uses the D-pad, 
 The two addons share no frame names, slash commands or globals (`/bp` and `/bagpad` vs `/fcb` and `/flatcrossbar`), and BagPad's list of conflicting bag addons does not include this one. I could not read BagPad's source (it has no public repository), so this is based on its CurseForge page and has not been tried with it installed.
 
 One conflict that is not fixable in the addon: the shoulder bars need Steam Input to send Alt for LB and Alt+Ctrl for RB, so the game never sees LB/RB while that is on, and BagPad's LB (compare gear) and RB (DataPad) will not work. Either turn that Steam Input layer off while using BagPad, or put it on an action layer you switch to.
+
+## The game's own four buttons
+
+The base bar's face buttons are the game's own: **Act** (dynamic action: interact or attack), **Insp** (inspect: the target menu), **Back** (cancel cast, clear target) and **Jump**. They are the game's hidden bindings `GAMEPADACTIONBUTTON5-8`, and they show as dim labelled slots in the Base block. They are bound like the other buttons, to controller buttons only:
+
+- `/fcb bindto jump` (or `dynamic`, `inspect`, `back`), then press a controller button; or `/fcb bind`, hover the slot and press one.
+- The defaults are X (Act), Y (Insp), B (Back) and A (Jump). `/fcb clear jump` removes one, `/fcb padreset` restores them.
+
+Holding LB makes the game show its own page tracker. With `/fcb blizzard off` (the default) the addon hides the page tracker and the game's crossbar, and keeps them hidden if the game shows them again later. `/fcb blizzard on` leaves them alone.
+
+Not checked in the real client: that an override binding to `GAMEPADACTIONBUTTON5-8` runs the game's button, and that the page tracker is hidden by this.

@@ -220,10 +220,20 @@ local TARGETS = {
   wheel = { "FlatCrossbarWheelButton", "LeftButton", "wheel (hold)", true },
   wheelNext = { "FlatCrossbarWheelPageButton", "LeftButton", "next wheel page", true },
   wheelPrev = { "FlatCrossbarWheelPageButton", "RightButton", "previous wheel page", true },
+  -- The four buttons the game keeps on the base bar's face buttons: slots 5-8 are the
+  -- hidden bindings GAMEPADACTIONBUTTON5-8 (fifth field), run as the game runs them.
+  dynamic = { nil, nil, "dynamic action (interact / attack)", true, "GAMEPADACTIONBUTTON5" },
+  inspect = { nil, nil, "inspect (target menu)", true, "GAMEPADACTIONBUTTON6" },
+  back = { nil, nil, "back / close (cancel, clear target)", true, "GAMEPADACTIONBUTTON7" },
+  jump = { nil, nil, "jump", true, "GAMEPADACTIONBUTTON8" },
 }
+local RESERVED_TARGETS = { "dynamic", "inspect", "back", "jump" }
+local RESERVED_LABEL = { "Act", "Insp", "Back", "Jump" }
+local RESERVED_DEFAULT = { dynamic = "PAD3", inspect = "PAD4", back = "PAD2", jump = "PAD1" }
 local TARGET_ALIASES = {
   pagenext = "pageNext", pageprev = "pagePrev", wheel = "wheel",
   wheelnext = "wheelNext", wheelprev = "wheelPrev",
+  dynamic = "dynamic", inspect = "inspect", back = "back", jump = "jump",
 }
 
 local function targetLabel(target)
@@ -255,12 +265,19 @@ local function applyBindings()
     if (mode == "keyboard" or mode == "both") and not t[4] then
       if db.kb[name] then SetOverrideBindingClick(bindOwner, true, db.kb[name], t[1], t[2]) end
     end
-    if padLive then
-      if db.pad[name] then SetOverrideBindingClick(bindOwner, true, db.pad[name], t[1], t[2]) end
+    if padLive and db.pad[name] then
+      if t[5] then
+        SetOverrideBinding(bindOwner, true, db.pad[name], t[5])
+      else
+        SetOverrideBindingClick(bindOwner, true, db.pad[name], t[1], t[2])
+      end
     end
   end
   for i = 1, NUM_BUTTONS do
     if buttons[i] then buttons[i].HotKey:SetText(hotkeyText(i)) end
+  end
+  for k, slot in ipairs(reservedSlots) do
+    slot.HotKey:SetText(padLive and shortKey(db.pad[RESERVED_TARGETS[k]]) or "")
   end
   if modeButton then modeButton:SetText(MODE_LABEL[db.mode]) end
 
@@ -1009,6 +1026,23 @@ local function createFrames()
     bg:SetAllPoints()
     bg:SetColorTexture(0, 0, 0, 0.25)
     addBorder(slot, 0.2, 0.2, 0.2, 1)
+    slot.Label = slot:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    slot.Label:SetPoint("CENTER")
+    slot.Label:SetText(RESERVED_LABEL[k])
+    slot.HotKey = slot:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
+    slot.HotKey:SetPoint("TOPLEFT", 2, -2)
+    slot:EnableMouse(true)
+    slot:SetScript("OnEnter", function(self)
+      hoverTarget = RESERVED_TARGETS[k]
+      GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+      GameTooltip:SetText(TARGETS[RESERVED_TARGETS[k]][3])
+      GameTooltip:AddLine("The game's own button. Bind with /fcb bind (hover, press a controller button).", 1, 1, 1)
+      GameTooltip:Show()
+    end)
+    slot:SetScript("OnLeave", function()
+      hoverTarget = nil
+      GameTooltip:Hide()
+    end)
     reservedSlots[k] = slot
   end
   for i = 1, NUM_BUTTONS do
@@ -1025,10 +1059,24 @@ end
 
 -- Blizzard crossbar -----------------------------------------------------------
 
+local hookedTracker
+
+-- Holding LB makes the game show its page tracker (GamepadMainActionBarFrame.PageUnit.
+-- PageTracker); keep that hidden along with the crossbar.
 local function applyBlizzardVisibility()
   local frame = _G.GamepadMainActionBarFrame
   if not frame then return end
   frame:SetAlpha(db.hideBlizzard and 0 or 1)
+  local unit = type(frame.PageUnit) == "table" and frame.PageUnit or nil
+  local tracker = unit and type(unit.PageTracker) == "table" and unit.PageTracker or nil
+  if not tracker then return end
+  if hookedTracker ~= tracker then
+    hookedTracker = tracker
+    tracker:HookScript("OnShow", function(self)
+      if db and db.hideBlizzard then self:Hide() end
+    end)
+  end
+  if db.hideBlizzard then tracker:Hide() end
 end
 
 -- Events ----------------------------------------------------------------------
@@ -1048,7 +1096,12 @@ end
 
 -- Controller defaults: each bar's D-pad and face buttons under its trigger
 -- (Base = bare, LT = Shift, RT = Ctrl, LT+RT = both). Only for a fresh set.
+local function seedReservedDefaults()
+  for target, key in pairs(RESERVED_DEFAULT) do db.pad[target] = key end
+end
+
 local function seedPadDefaults(from)
+  if not from then seedReservedDefaults() end
   for i = from or 1, NUM_BUTTONS do
     db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]]
   end
@@ -1111,6 +1164,8 @@ events:SetScript("OnUpdate", function(_, elapsed)
   yieldElapsed = yieldElapsed + elapsed
   if yieldElapsed < 0.25 or not db or not container then return end
   yieldElapsed = 0
+  -- The crossbar frame can be built or shown after login; keep it hidden.
+  if db.hideBlizzard then applyBlizzardVisibility() end
   local now = anyYieldFrameShown()
   if now ~= yielding then
     yielding = now
@@ -1126,6 +1181,13 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     copyDefaults(db, DEFAULTS)
     if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
     db.padSeeded = true
+    if not db.reservedSeeded then
+      -- Saves from before the game's four buttons could be bound: their usual keys.
+      for target, key in pairs(RESERVED_DEFAULT) do
+        if db.pad[target] == nil then db.pad[target] = key end
+      end
+      db.reservedSeeded = true
+    end
     if (db.extraSeedVersion or 0) < 2 then
       -- Saves from before the shoulder bars: give the buttons without a bind their defaults.
       for i = MAIN_BUTTONS + 1, NUM_BUTTONS do
@@ -1191,7 +1253,7 @@ local HELP = {
   "/fcb clear [n|all] - clear the keybinds of button n (or all)",
   "/fcb page 1-2 - show that crossbar page",
   "/fcb wheel - preview the wheel   /fcb wheelpage 1-4   /fcb wheelscale N",
-  "/fcb bindto wheel|wheelnext|wheelprev|pagenext|pageprev - bind that, then press a key",
+  "/fcb bindto wheel|wheelnext|wheelprev|pagenext|pageprev|dynamic|inspect|back|jump - bind that, then press a key",
   "/fcb helper [on|off] - the combo text beside each bar (LT +, RT + ...)",
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
@@ -1241,7 +1303,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
     if bindCapture:IsShown() then stopBindMode() else startBindMode() end
   elseif cmd == "bindto" then
     local target = TARGET_ALIASES[arg]
-    if not target then return print_("targets: wheel, wheelnext, wheelprev, pagenext, pageprev") end
+    if not target then return print_("targets: wheel, wheelnext, wheelprev, pagenext, pageprev, dynamic, inspect, back, jump") end
     if InCombatLockdown() then return print_("can't change keybinds in combat.") end
     forcedTarget = target
     bindCapture:Show()

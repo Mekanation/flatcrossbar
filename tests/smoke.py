@@ -86,6 +86,7 @@ PickupAction = function() end
 PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
 BINDS = 0
+SetOverrideBinding = function(owner, pri, key, cmd) BINDS = BINDS + 1; note(('bindcmd %s -> %s'):format(key, cmd)) end
 SetOverrideBindingClick = function(owner, pri, key, name, btn) BINDS = BINDS + 1; note(('bind %s -> %s:%s'):format(key, name, btn)) end
 ActionButton_ApplyCooldown = nil
 local macros = {}
@@ -208,6 +209,9 @@ note('binds applied after the bag closes: ' .. tostring(BINDS - before))
 try('/fcb yield add MyBagFrame', slash, 'yield add MyBagFrame')
 try('/fcb yield', slash, 'yield')
 try('/fcb yield remove MyBagFrame', slash, 'yield remove MyBagFrame')
+try('/fcb bindto jump', slash, 'bindto jump')
+try('capture PADRSHOULDER for jump', cap.__scripts.OnGamePadButtonDown, cap, 'PADRSHOULDER')
+note('jump bind now: ' .. tostring(FlatCrossbarDB.pad.jump) .. ', default others: ' .. tostring(FlatCrossbarDB.pad.dynamic) .. ' ' .. tostring(FlatCrossbarDB.pad.inspect) .. ' ' .. tostring(FlatCrossbarDB.pad.back))
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')
