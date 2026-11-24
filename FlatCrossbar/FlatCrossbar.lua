@@ -42,16 +42,16 @@ local DEFAULTS = {
   mode = "auto",
   kb = {},
   pad = {},
-  layout = "groups",
-  groupCols = 4,
-  cols = 14,
+  helper = true,
+  hideButtons = false,
+  groupPoints = {},
   scale = 1,
   page = 1,
   wheelPage = 1,
   wheelScale = 1,
   locked = false,
   hideBlizzard = true,
-  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 120 },
+  point = { "BOTTOM", "UIParent", "BOTTOM", 0, 230 },
 }
 
 BINDING_HEADER_FLATCROSSBAR = "FlatCrossbar"
@@ -68,7 +68,9 @@ BINDING_NAME_FLATCROSSBARTOGGLEMODE = "Toggle keyboard / controller keybinds"
 local db
 local buttons = {}
 local container, header, modeButton, pageButton, bindButton, bindCapture
-local groupLabels, reservedSlots = {}, {}
+local groupFrames, groupHandles, sideTexts, reservedSlots = {}, {}, {}, {}
+local toolbarHandle
+local layoutToolbar
 local buildError
 local securePaging = true
 
@@ -237,14 +239,7 @@ local function applyBindings()
   end
   if modeButton then modeButton:SetText(MODE_LABEL[db.mode]) end
 
-  local showWheel = (mode == "controller" or mode == "both")
-  if wheelHeaderButton then
-    wheelHeaderButton:SetShown(showWheel)
-    wheelPageButton:SetShown(showWheel)
-    bindButton:ClearAllPoints()
-    bindButton:SetPoint("LEFT", showWheel and wheelPageButton or pageButton, "RIGHT", 4, 0)
-    if not showWheel and wheel then wheel:Hide() end
-  end
+  layoutToolbar()
 end
 
 local function setMode(mode)
@@ -382,7 +377,7 @@ local function makeCooldown(parent, swipe, edge)
 end
 
 local function createButton(i)
-  local btn = CreateFrame("Button", "FlatCrossbarButton" .. i, container, "SecureActionButtonTemplate")
+  local btn = CreateFrame("Button", "FlatCrossbarButton" .. i, groupFrames[BUTTON_GROUP[i]], "SecureActionButtonTemplate")
   btn:SetSize(BUTTON_SIZE, BUTTON_SIZE)
   btn:SetAttribute("type", "action")
   btn:RegisterForClicks("AnyUp", "AnyDown")
@@ -456,58 +451,35 @@ end
 local GROUP_COLS = 4 -- buttons per row inside a group
 local GROUP_ROWS = GROUP_SIZE / GROUP_COLS
 local GROUP_GAP = 10
-local GROUP_LABEL_HEIGHT = 12
+local GROUP_WIDTH = GROUP_COLS * (BUTTON_SIZE + SPACING) - SPACING
+local GROUP_HEIGHT = GROUP_ROWS * (BUTTON_SIZE + SPACING) - SPACING
+local HANDLE_HEIGHT = 12
+local SIDE_WIDTH = 52
 
--- The groups layout: the four bars as 2x4 blocks, laid out db.groupCols across.
-local function layoutGroups()
-  local step = BUTTON_SIZE + SPACING
-  local per = math.max(1, math.min(#GROUP_LABEL, math.floor(db.groupCols)))
-  local groupW = GROUP_COLS * step - SPACING
-  local groupH = GROUP_LABEL_HEIGHT + GROUP_ROWS * step - SPACING
-  local top = HEADER_HEIGHT + SPACING
+-- What is held for each bar, and for each of its two rows, shown beside it.
+local SIDE_COMBO = { "", "LT +", "RT +", "LT+RT +" }
+local SIDE_ROW = { "D-pad", "X Y B A" }
 
-  local function place(frame, g, col, row)
-    local gx, gy = (g - 1) % per, math.floor((g - 1) / per)
-    frame:ClearAllPoints()
-    frame:SetPoint("TOPLEFT", container, "TOPLEFT", gx * (groupW + GROUP_GAP) + col * step,
-      -(top + gy * (groupH + GROUP_GAP) + GROUP_LABEL_HEIGHT + row * step))
-  end
-
-  for g, label in ipairs(groupLabels) do
-    local gx, gy = (g - 1) % per, math.floor((g - 1) / per)
-    label:ClearAllPoints()
-    label:SetPoint("TOPLEFT", container, "TOPLEFT", gx * (groupW + GROUP_GAP), -(top + gy * (groupH + GROUP_GAP)))
-    label:SetWidth(groupW)
-    label:Show()
-  end
-  for i, btn in ipairs(buttons) do
-    local s = BUTTON_SLOT[i]
-    place(btn, BUTTON_GROUP[i], (s - 1) % GROUP_COLS, math.floor((s - 1) / GROUP_COLS))
-  end
-  -- Slots 5-8 of the base bar are the face buttons, kept by the game for jump,
-  -- interact and so on, so they are shown empty.
-  for k, slot in ipairs(reservedSlots) do
-    local s = 4 + k
-    place(slot, 1, (s - 1) % GROUP_COLS, math.floor((s - 1) / GROUP_COLS))
-    slot:Show()
-  end
-  local groupRows = math.ceil(#GROUP_LABEL / per)
-  container:SetSize(per * groupW + (per - 1) * GROUP_GAP, top + groupRows * groupH + (groupRows - 1) * GROUP_GAP)
+local function groupDefaultPoint(g)
+  local step = GROUP_WIDTH + SIDE_WIDTH + GROUP_GAP
+  return { "BOTTOM", "UIParent", "BOTTOM", (g - (#GROUP_LABEL + 1) / 2) * step + SIDE_WIDTH / 2, 120 }
 end
 
-local function layoutRow()
-  local cols = math.max(1, math.min(NUM_BUTTONS, db.cols))
-  local rows = math.ceil(NUM_BUTTONS / cols)
-  for i, btn in ipairs(buttons) do
-    local col = (i - 1) % cols
-    local row = math.floor((i - 1) / cols)
-    btn:ClearAllPoints()
-    btn:SetPoint("TOPLEFT", container, "TOPLEFT", col * (BUTTON_SIZE + SPACING), -(HEADER_HEIGHT + SPACING + row * (BUTTON_SIZE + SPACING)))
+local function setPoint(frame, p)
+  frame:ClearAllPoints()
+  frame:SetPoint(p[1], _G[p[2]] or UIParent, p[3], p[4], p[5])
+end
+
+local function savePoint(frame)
+  local point, _, relPoint, x, y = frame:GetPoint()
+  return { point, "UIParent", relPoint, x, y }
+end
+
+local function restorePosition()
+  setPoint(container, db.point)
+  for g, gf in ipairs(groupFrames) do
+    setPoint(gf, db.groupPoints[g] or groupDefaultPoint(g))
   end
-  for _, label in ipairs(groupLabels) do label:Hide() end
-  for _, slot in ipairs(reservedSlots) do slot:Hide() end
-  container:SetSize(cols * (BUTTON_SIZE + SPACING) - SPACING,
-    HEADER_HEIGHT + SPACING + rows * (BUTTON_SIZE + SPACING) - SPACING)
 end
 
 local function layout()
@@ -516,14 +488,65 @@ local function layout()
     return
   end
   pendingLayout = false
-  if db.layout == "row" then layoutRow() else layoutGroups() end
+  local step = BUTTON_SIZE + SPACING
+  for g, gf in ipairs(groupFrames) do
+    gf:SetSize(GROUP_WIDTH, GROUP_HEIGHT)
+    gf:SetScale(db.scale)
+    for _, text in ipairs(sideTexts[g]) do text:SetShown(db.helper and true or false) end
+  end
+  for i, btn in ipairs(buttons) do
+    local s = BUTTON_SLOT[i]
+    btn:ClearAllPoints()
+    btn:SetPoint("TOPLEFT", groupFrames[BUTTON_GROUP[i]], "TOPLEFT",
+      ((s - 1) % GROUP_COLS) * step, -math.floor((s - 1) / GROUP_COLS) * step)
+  end
+  -- Slots 5-8 of the base bar are the face buttons, kept by the game for jump,
+  -- interact and so on, so they are shown empty.
+  for k, slot in ipairs(reservedSlots) do
+    local s = 4 + k
+    slot:ClearAllPoints()
+    slot:SetPoint("TOPLEFT", groupFrames[1], "TOPLEFT",
+      ((s - 1) % GROUP_COLS) * step, -math.floor((s - 1) / GROUP_COLS) * step)
+  end
   container:SetScale(db.scale)
+  layoutToolbar()
 end
 
-local function restorePosition()
-  local p = db.point
-  container:ClearAllPoints()
-  container:SetPoint(p[1], _G[p[2]] or UIParent, p[3], p[4], p[5])
+-- The blue strip above a movable frame, shown while unlocked.
+local function makeHandle(frame, text, onMoved)
+  local h = CreateFrame("Frame", nil, frame)
+  h:SetHeight(HANDLE_HEIGHT)
+  h:SetPoint("BOTTOMLEFT", frame, "TOPLEFT")
+  h:SetPoint("BOTTOMRIGHT", frame, "TOPRIGHT")
+  h:EnableMouse(true)
+  h:RegisterForDrag("LeftButton")
+  local bg = h:CreateTexture(nil, "BACKGROUND")
+  bg:SetAllPoints()
+  bg:SetColorTexture(0.1, 0.35, 0.7, 0.85)
+  local label = h:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+  label:SetPoint("CENTER")
+  label:SetText(text)
+  h:SetScript("OnDragStart", function()
+    if InCombatLockdown() then return end
+    frame:StartMoving()
+  end)
+  h:SetScript("OnDragStop", function()
+    frame:StopMovingOrSizing()
+    onMoved()
+  end)
+  return h
+end
+
+local function applyLock()
+  local show = not db.locked
+  toolbarHandle:SetShown(show)
+  for _, h in ipairs(groupHandles) do h:SetShown(show) end
+end
+
+local function setBarShown(show)
+  if InCombatLockdown() then return print_("can't do that in combat.") end
+  container:SetShown(show)
+  for _, gf in ipairs(groupFrames) do gf:SetShown(show) end
 end
 
 local function makeHeaderButton(text, width)
@@ -532,6 +555,34 @@ local function makeHeaderButton(text, width)
   b:SetText(text)
   return b
 end
+
+-- Packs the toolbar buttons that are showing, left to right. The wheel's two
+-- follow the keybind mode; mode, page and bind can be hidden (/fcb hidebuttons).
+-- Only called out of combat (the page and wheel buttons are protected).
+layoutToolbar = function()
+  local mode = effectiveMode()
+  local showWheel = (mode == "controller" or mode == "both")
+  local utility = not db.hideButtons
+  local order = {
+    { modeButton, utility }, { pageButton, utility },
+    { wheelHeaderButton, showWheel }, { wheelPageButton, showWheel },
+    { bindButton, utility },
+  }
+  local prev, width = nil, 0
+  for _, entry in ipairs(order) do
+    local b, show = entry[1], entry[2]
+    b:SetShown(show)
+    if show then
+      b:ClearAllPoints()
+      if prev then b:SetPoint("LEFT", prev, "RIGHT", 4, 0) else b:SetPoint("LEFT", container, "LEFT") end
+      width = width + b:GetWidth() + (prev and 4 or 0)
+      prev = b
+    end
+  end
+  container:SetSize(math.max(width, 70), HEADER_HEIGHT)
+  if not showWheel and wheel then wheel:Hide() end
+end
+
 
 -- Keybind capture -------------------------------------------------------------
 
@@ -778,21 +829,9 @@ local function createFrames()
   container:SetClampedToScreen(true)
   container:SetFrameStrata("MEDIUM")
 
-  header = CreateFrame("Frame", nil, container)
-  header:SetPoint("TOPLEFT")
-  header:SetPoint("TOPRIGHT")
-  header:SetHeight(HEADER_HEIGHT)
-  header:EnableMouse(true)
-  header:RegisterForDrag("LeftButton")
-  header:SetScript("OnDragStart", function()
-    if db.locked or InCombatLockdown() then return end
-    container:StartMoving()
-  end)
-  header:SetScript("OnDragStop", function()
-    container:StopMovingOrSizing()
-    local point, _, relPoint, x, y = container:GetPoint()
-    db.point = { point, "UIParent", relPoint, x, y }
-  end)
+  container:SetSize(70, HEADER_HEIGHT)
+  header = container
+  toolbarHandle = makeHandle(container, "FlatCrossbar", function() db.point = savePoint(container) end)
 
   modeButton = makeHeaderButton("", 62)
   modeButton:SetPoint("LEFT")
@@ -909,15 +948,31 @@ local function createFrames()
   bindCapture:SetScript("OnGamePadButtonDown", onCaptureKey)
   bindCapture:Hide()
 
-  for g, text in ipairs(GROUP_LABEL) do
-    local label = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    label:SetHeight(GROUP_LABEL_HEIGHT)
-    label:SetJustifyH("LEFT")
-    label:SetText(text)
-    groupLabels[g] = label
+  for g, name in ipairs(GROUP_LABEL) do
+    local gf = CreateFrame("Frame", "FlatCrossbarGroup" .. g, UIParent)
+    gf:SetMovable(true)
+    gf:SetClampedToScreen(true)
+    gf:SetFrameStrata("MEDIUM")
+    gf:SetSize(GROUP_WIDTH, GROUP_HEIGHT)
+    groupFrames[g] = gf
+    groupHandles[g] = makeHandle(gf, name, function() db.groupPoints[g] = savePoint(gf) end)
+    sideTexts[g] = {}
+    for r = 1, 2 do
+      local t = gf:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+      t:SetSize(SIDE_WIDTH, BUTTON_SIZE)
+      t:SetJustifyH("RIGHT")
+      t:SetJustifyV("MIDDLE")
+      t:SetPoint("RIGHT", gf, "TOPLEFT", -4, -(BUTTON_SIZE / 2 + (r - 1) * (BUTTON_SIZE + SPACING)))
+      if g == 1 and r == 2 then
+        t:SetText("|cff888888game|r")
+      else
+        t:SetText((SIDE_COMBO[g] ~= "" and (SIDE_COMBO[g] .. "\n") or "") .. SIDE_ROW[r])
+      end
+      sideTexts[g][r] = t
+    end
   end
   for k = 1, 4 do
-    local slot = CreateFrame("Frame", nil, container)
+    local slot = CreateFrame("Frame", nil, groupFrames[1])
     slot:SetSize(BUTTON_SIZE, BUTTON_SIZE)
     local bg = slot:CreateTexture(nil, "BACKGROUND")
     bg:SetAllPoints()
@@ -986,6 +1041,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     local built, err = pcall(function()
       createFrames()
       restorePosition()
+      applyLock()
       layout()
     end)
     if not built then
@@ -1040,13 +1096,13 @@ local HELP = {
   "/fcb page 1-3 - show that crossbar page",
   "/fcb wheel - preview the wheel   /fcb wheelpage 1-4   /fcb wheelscale N",
   "/fcb bindto wheel|wheelnext|wheelprev|pagenext|pageprev - bind that, then press a key",
-  "/fcb layout groups|row - four trigger groups (Base, LT, RT, LT+RT), or one row",
-  "/fcb groupcols 1-4 - groups per row   /fcb cols N - buttons per row (row layout)",
+  "/fcb helper [on|off] - the combo text beside each bar (LT +, RT + ...)",
+  "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb scale N - bar scale",
-  "/fcb lock | unlock - dragging the bar and (without Shift) its buttons",
+  "/fcb unlock | lock - show / hide the drag handles (hold Shift to drag actions off a locked bar)",
   "/fcb blizzard on|off - hide or show Blizzard's own crossbar",
-  "/fcb show | hide - this bar   /fcb status - why it isn't showing",
+  "/fcb show | hide - the bars   /fcb resetpos - bars back to the default spots   /fcb status",
 }
 
 SLASH_FLATCROSSBAR1 = "/fcb"
@@ -1059,7 +1115,7 @@ SlashCmdList.FLATCROSSBAR = function(input)
 
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
-    print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", layout: " .. tostring(db.layout))
+    print_("bar frame: " .. tostring(container ~= nil) .. ", buttons: " .. #buttons .. ", groups: " .. #groupFrames .. ", locked: " .. tostring(db.locked))
     print_("secure paging: " .. tostring(securePaging) .. "; input: gamepad UI " .. tostring(gamepadUIActive()) .. ", binds " .. effectiveMode())
     if container then
       local parent = container:GetParent()
@@ -1127,38 +1183,41 @@ SlashCmdList.FLATCROSSBAR = function(input)
   elseif cmd == "page" then
     local n = tonumber(arg)
     if n then applyPage(n) else print_("/fcb page 1-" .. NUM_PAGES) end
-  elseif cmd == "layout" then
-    if arg == "groups" or arg == "row" then
-      db.layout = arg
-      layout()
-    else
-      print_("/fcb layout groups|row")
-    end
-  elseif cmd == "groupcols" then
-    local n = tonumber(arg)
-    if n and n >= 1 and n <= #GROUP_LABEL then db.groupCols = math.floor(n); layout() else print_("/fcb groupcols 1-" .. #GROUP_LABEL) end
   elseif cmd == "padreset" then
     if InCombatLockdown() then return print_("can't change keybinds in combat.") end
     seedPadDefaults()
     applyBindings()
     print_("controller binds reset to the default trigger layout.")
-  elseif cmd == "cols" then
-    local n = tonumber(arg)
-    if n then db.cols = math.floor(n); layout() else print_("/fcb cols 1-" .. NUM_BUTTONS) end
   elseif cmd == "scale" then
     local n = tonumber(arg)
     if n and n >= 0.5 and n <= 2 then db.scale = n; layout() else print_("/fcb scale 0.5-2") end
   elseif cmd == "lock" or cmd == "unlock" then
     db.locked = (cmd == "lock")
-    print_(db.locked and "locked" or "unlocked")
+    applyLock()
+    print_(db.locked and "locked: drag handles hidden" or "unlocked: drag a blue handle to move that bar")
+  elseif cmd == "hidebuttons" or cmd == "showbuttons" then
+    if InCombatLockdown() then return print_("can't do that in combat.") end
+    db.hideButtons = (cmd == "hidebuttons")
+    layoutToolbar()
+  elseif cmd == "helper" then
+    if arg == "on" then db.helper = true elseif arg == "off" then db.helper = false else db.helper = not db.helper end
+    for g = 1, #sideTexts do
+      for _, text in ipairs(sideTexts[g]) do text:SetShown(db.helper and true or false) end
+    end
+    print_("helper text " .. (db.helper and "on" or "off"))
+  elseif cmd == "resetpos" then
+    if InCombatLockdown() then return print_("can't do that in combat.") end
+    db.point = { "BOTTOM", "UIParent", "BOTTOM", 0, 230 }
+    db.groupPoints = {}
+    restorePosition()
   elseif cmd == "blizzard" then
     db.hideBlizzard = (arg ~= "on")
     applyBlizzardVisibility()
     print_("Blizzard crossbar " .. (db.hideBlizzard and "hidden" or "shown"))
   elseif cmd == "show" then
-    container:Show()
+    setBarShown(true)
   elseif cmd == "hide" then
-    container:Hide()
+    setBarShown(false)
   else
     for _, line in ipairs(HELP) do print_(line) end
   end

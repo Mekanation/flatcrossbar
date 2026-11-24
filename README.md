@@ -53,8 +53,12 @@ addon's own logic, not game behaviour.
 
 ## Layout
 
-By default the bar shows the crossbar's four bars as four 2x4 blocks: Base, LT, RT and LT+RT, each with the D-pad on the top row and the face buttons below. The base block's face buttons are reserved by the game and shown empty. On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for Base, with Shift for LT, Ctrl for RT and both for LT+RT. This follows the key-modifier convention that ClassicConsoleGamepadUI uses for the triggers and has not been checked against the real client.
+The crossbar's four bars are four separate blocks: Base, LT, RT and LT+RT, each with the D-pad on the top row and the face buttons below. The base block's face buttons are reserved by the game and shown empty. Text beside each block says what to hold (`LT +` and so on). A small toolbar holds the keyboard/controller toggle, page, wheel and bind buttons.
 
-- `/fcb layout groups|row` switches between the blocks and the single 28-button row.
-- `/fcb groupcols 1-4` sets how many blocks sit side by side.
+On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for Base, with Shift for LT, Ctrl for RT and both for LT+RT. This follows the key-modifier convention ClassicConsoleGamepadUI uses for the triggers and has not been checked against the real client.
+
+- `/fcb unlock` shows a blue drag handle above each block and the toolbar; drag them separately. `/fcb lock` hides the handles.
+- `/fcb helper [on|off]` shows or hides the text beside each block.
+- `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle, Pg and Bind buttons.
+- `/fcb resetpos` puts the blocks and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.

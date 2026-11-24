@@ -66,6 +66,7 @@ CreateFrame = function(kind, name, parent, template)
   local f = newStub(kind, name)
   ALL[#ALL + 1] = f
   f.__template = template
+  f.__parent = parent and parent.__name or nil
   if kind == 'Frame' then f.__shown = true end
   if name then G[name] = f end
   return f
@@ -174,9 +175,19 @@ note('attrs after post-click: ' .. tostring(wbtn:GetAttribute('type')))
 
 try('wheel page click', wpage.__scripts.OnClick, wpage, 'LeftButton')
 try('/fcb wheelpage 3', slash, 'wheelpage 3')
-try('/fcb layout row', slash, 'layout row')
-try('/fcb layout groups', slash, 'layout groups')
-try('/fcb groupcols 2', slash, 'groupcols 2')
+note('groups: ' .. tostring(G.FlatCrossbarGroup1 ~= nil) .. tostring(G.FlatCrossbarGroup4 ~= nil) .. ', button 9 parent = ' .. tostring(G.FlatCrossbarButton9 and G.FlatCrossbarButton9.__parent))
+try('/fcb hidebuttons', slash, 'hidebuttons')
+note('page button shown after hidebuttons: ' .. tostring(G.FlatCrossbarPageButton:IsShown()))
+try('/fcb showbuttons', slash, 'showbuttons')
+note('page button shown after showbuttons: ' .. tostring(G.FlatCrossbarPageButton:IsShown()))
+try('/fcb helper off', slash, 'helper off')
+try('/fcb helper', slash, 'helper')
+try('/fcb lock', slash, 'lock')
+try('/fcb unlock', slash, 'unlock')
+try('/fcb hide', slash, 'hide')
+note('group 1 shown after hide: ' .. tostring(G.FlatCrossbarGroup1:IsShown()))
+try('/fcb show', slash, 'show')
+try('/fcb resetpos', slash, 'resetpos')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')
