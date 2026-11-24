@@ -53,7 +53,7 @@ function Stub.GetPoint() return 'BOTTOM', nil, 'BOTTOM', 0, 120 end
 function Stub.RegisterEvent(self, e) local ev = rawget(self, '__events') or {}; rawset(self, '__events', ev); ev[e] = true end
 function Stub.GetCenter() return 0, 0 end
 function Stub.SetAlpha(self, v) self.__alpha = v end
-function Stub.GetAlpha(self) return self.__alpha or 1 end
+function Stub.GetAlpha(self) return rawget(self, '__alpha') or 1 end
 function Stub.GetWidth() return 100 end
 function Stub.GetHeight() return 50 end
 function Stub.GetEffectiveScale() return 1 end
@@ -140,6 +140,7 @@ end
 fire('ADDON_LOADED', addonName)
 fire('PLAYER_ENTERING_WORLD')
 
+if not G.FlatCrossbarButton1 then return 'ERROR bar did not build:' .. string.char(10) .. table.concat(log, string.char(10)) end
 local wheel, wbtn, wpage = G.FlatCrossbarWheel, G.FlatCrossbarWheelButton, G.FlatCrossbarWheelPageButton
 note('wheel frame: ' .. tostring(wheel ~= nil) .. ', wheel button: ' .. tostring(wbtn ~= nil))
 note('button1 action = ' .. tostring(G.FlatCrossbarButton1:GetAttribute('action')) ..
@@ -216,6 +217,15 @@ try('capture PADRSHOULDER for jump', cap.__scripts.OnGamePadButtonDown, cap, 'PA
 note('jump bind now: ' .. tostring(FlatCrossbarDB.pad.jump) .. ', default others: ' .. tostring(FlatCrossbarDB.pad.dynamic) .. ' ' .. tostring(FlatCrossbarDB.pad.inspect) .. ' ' .. tostring(FlatCrossbarDB.pad.back))
 try('global wheel page next', FlatCrossbar_WheelPage, 1)
 try('global wheel page prev', FlatCrossbar_WheelPage, -1)
+-- the bars fade while LT is held
+IsShiftKeyDown = function() return true end
+for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
+note('alpha with LT held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()) .. ' RT=' .. string.format('%.2f', G.FlatCrossbarGroup3:GetAlpha()))
+IsShiftKeyDown = function() return false end
+for _ = 1, 40 do G.FlatCrossbarFader.__scripts.OnUpdate(G.FlatCrossbarFader, 0.05) end
+note('alpha with nothing held: base=' .. string.format('%.2f', G.FlatCrossbarGroup1:GetAlpha()) .. ' LT=' .. string.format('%.2f', G.FlatCrossbarGroup2:GetAlpha()))
+try('/fcb fade 0.5', slash, 'fade 0.5')
+try('/fcb scale auto', slash, 'scale auto')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')

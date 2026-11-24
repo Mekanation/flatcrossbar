@@ -53,14 +53,16 @@ addon's own logic, not game behaviour.
 
 ## Layout
 
-The crossbar's four bars are four separate blocks: Base, LT, RT and LT+RT, each with the D-pad on the top row and the face buttons below. The base block's face buttons are reserved by the game and shown empty. Text beside each block says what to hold (`LT +` and so on). A small toolbar holds the keyboard/controller toggle, page, wheel and bind buttons.
+Each of the crossbar's bars is a single row of 8 buttons in its own panel with a coloured edge: Base, LT, RT and LT+RT, plus LB and RB for the shoulder bars. All six sit in one row along the bottom, and the scale is set on first run so they fit the screen (`/fcb scale auto` redoes it). Under each bar a coloured label says what to hold ("LT", "hold LT"). The first four buttons of a bar are the D-pad and the last four are the face buttons. The base bar's face buttons are the game's own (see below). A small toolbar above holds the keyboard/controller toggle, page, wheel and bind buttons.
+
+While you hold LT, RT, LB or RB (as Shift, Ctrl or Alt) in controller mode, the other bars fade so the active one stands out. `/fcb fade off` turns that off; `/fcb fade 0.5` sets how dim they get.
 
 On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for Base, with Shift for LT, Ctrl for RT and both for LT+RT. This follows the key-modifier convention ClassicConsoleGamepadUI uses for the triggers and has not been checked against the real client.
 
-- `/fcb unlock` shows a blue drag handle above each block and the toolbar; drag them separately. `/fcb lock` hides the handles.
-- `/fcb helper [on|off]` shows or hides the text beside each block.
+- `/fcb unlock` shows a coloured drag handle above each bar and the toolbar; drag them separately. `/fcb lock` hides the handles.
+- `/fcb helper [on|off]` shows or hides the labels under each bar.
 - `/fcb hidebuttons` and `/fcb showbuttons` hide or show the keyboard/controller toggle, Pg and Bind buttons.
-- `/fcb resetpos` puts the blocks and toolbar back in their default spots.
+- `/fcb resetpos` puts the bars and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.
 
 ## Shoulder bars
