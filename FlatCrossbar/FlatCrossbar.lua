@@ -42,6 +42,8 @@ local DEFAULTS = {
   mode = "auto",
   kb = {},
   pad = {},
+  layout = "groups",
+  groupCols = 4,
   cols = 14,
   scale = 1,
   page = 1,
@@ -66,6 +68,7 @@ BINDING_NAME_FLATCROSSBARTOGGLEMODE = "Toggle keyboard / controller keybinds"
 local db
 local buttons = {}
 local container, header, modeButton, pageButton, bindButton, bindCapture
+local groupLabels, reservedSlots = {}, {}
 local wheel, wheelPageButton, wheelHeaderButton
 local slices = {}
 local bindOwner = CreateFrame("Frame")
@@ -84,6 +87,21 @@ end
 local PAGE_UNIT_SLOT_IDS = {}
 for id = 1, 4 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 for id = 9, 32 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
+
+-- The crossbar's four bars are 8 buttons each (slots 1-4 on the D-pad, 5-8 on
+-- the face buttons) and are picked by the triggers held: none = top, LT = left,
+-- RT = right, LT+RT = bottom (PageUnit.lua). The groups layout draws each bar as
+-- a small 2x4 block under its trigger label.
+local GROUP_SIZE = 8
+local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT" }
+-- The triggers reach the game as Shift (LT) and Ctrl (RT) when binding keys.
+local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-" }
+local SLOT_PAD = { "PADDLEFT", "PADDUP", "PADDRIGHT", "PADDDOWN", "PAD3", "PAD4", "PAD2", "PAD1" }
+local BUTTON_GROUP, BUTTON_SLOT = {}, {}
+for i, id in ipairs(PAGE_UNIT_SLOT_IDS) do
+  BUTTON_GROUP[i] = math.floor((id - 1) / GROUP_SIZE) + 1
+  BUTTON_SLOT[i] = (id - 1) % GROUP_SIZE + 1
+end
 
 -- Same arithmetic as GamepadActionBarBindingUtil in Blizzard_GamepadActionBars
 -- (ActionBindingUtil.lua), used when that addon's helper isn't available.
@@ -127,6 +145,7 @@ local SHORT_KEY = {
   PADLTRIGGER = "LT", PADRTRIGGER = "RT", PADLSHOULDER = "LB", PADRSHOULDER = "RB",
   PADDUP = "Du", PADDDOWN = "Dd", PADDLEFT = "Dl", PADDRIGHT = "Dr",
   PADLSTICK = "LS", PADRSTICK = "RS", PADFORWARD = "Fw", PADBACK = "Bk",
+  PAD1 = "A", PAD2 = "B", PAD3 = "X", PAD4 = "Y",
   MOUSEWHEELUP = "MwU", MOUSEWHEELDOWN = "MwD",
 }
 
@@ -134,6 +153,12 @@ local function shortKey(key)
   if not key then return nil end
   local mods, base = key:match("^(.*%-)([^%-]+)$")
   if not base then mods, base = "", key end
+  if base:find("^PAD") then
+    -- On a controller button, Shift and Ctrl are the left and right triggers.
+    local out = (mods:find("SHIFT%-") and "LT+" or "") .. (mods:find("CTRL%-") and "RT+" or "")
+      .. (mods:find("ALT%-") and "a" or "")
+    return out .. (SHORT_KEY[base] or (base:gsub("^PAD", "P")))
+  end
   mods = mods:gsub("ALT%-", "a"):gsub("CTRL%-", "c"):gsub("SHIFT%-", "s")
   base = SHORT_KEY[base] or base:gsub("^PAD", "P"):gsub("^NUMPAD", "N"):gsub("^BUTTON", "M")
   return mods .. base
@@ -414,12 +439,49 @@ local function createButton(i)
   return btn
 end
 
-local function layout()
-  if InCombatLockdown() then
-    pendingLayout = true
-    return
+local GROUP_COLS = 4 -- buttons per row inside a group
+local GROUP_ROWS = GROUP_SIZE / GROUP_COLS
+local GROUP_GAP = 10
+local GROUP_LABEL_HEIGHT = 12
+
+-- The groups layout: the four bars as 2x4 blocks, laid out db.groupCols across.
+local function layoutGroups()
+  local step = BUTTON_SIZE + SPACING
+  local per = math.max(1, math.min(#GROUP_LABEL, math.floor(db.groupCols)))
+  local groupW = GROUP_COLS * step - SPACING
+  local groupH = GROUP_LABEL_HEIGHT + GROUP_ROWS * step - SPACING
+  local top = HEADER_HEIGHT + SPACING
+
+  local function place(frame, g, col, row)
+    local gx, gy = (g - 1) % per, math.floor((g - 1) / per)
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", container, "TOPLEFT", gx * (groupW + GROUP_GAP) + col * step,
+      -(top + gy * (groupH + GROUP_GAP) + GROUP_LABEL_HEIGHT + row * step))
   end
-  pendingLayout = false
+
+  for g, label in ipairs(groupLabels) do
+    local gx, gy = (g - 1) % per, math.floor((g - 1) / per)
+    label:ClearAllPoints()
+    label:SetPoint("TOPLEFT", container, "TOPLEFT", gx * (groupW + GROUP_GAP), -(top + gy * (groupH + GROUP_GAP)))
+    label:SetWidth(groupW)
+    label:Show()
+  end
+  for i, btn in ipairs(buttons) do
+    local s = BUTTON_SLOT[i]
+    place(btn, BUTTON_GROUP[i], (s - 1) % GROUP_COLS, math.floor((s - 1) / GROUP_COLS))
+  end
+  -- Slots 5-8 of the base bar are the face buttons, kept by the game for jump,
+  -- interact and so on, so they are shown empty.
+  for k, slot in ipairs(reservedSlots) do
+    local s = 4 + k
+    place(slot, 1, (s - 1) % GROUP_COLS, math.floor((s - 1) / GROUP_COLS))
+    slot:Show()
+  end
+  local groupRows = math.ceil(#GROUP_LABEL / per)
+  container:SetSize(per * groupW + (per - 1) * GROUP_GAP, top + groupRows * groupH + (groupRows - 1) * GROUP_GAP)
+end
+
+local function layoutRow()
   local cols = math.max(1, math.min(NUM_BUTTONS, db.cols))
   local rows = math.ceil(NUM_BUTTONS / cols)
   for i, btn in ipairs(buttons) do
@@ -428,8 +490,19 @@ local function layout()
     btn:ClearAllPoints()
     btn:SetPoint("TOPLEFT", container, "TOPLEFT", col * (BUTTON_SIZE + SPACING), -(HEADER_HEIGHT + SPACING + row * (BUTTON_SIZE + SPACING)))
   end
+  for _, label in ipairs(groupLabels) do label:Hide() end
+  for _, slot in ipairs(reservedSlots) do slot:Hide() end
   container:SetSize(cols * (BUTTON_SIZE + SPACING) - SPACING,
     HEADER_HEIGHT + SPACING + rows * (BUTTON_SIZE + SPACING) - SPACING)
+end
+
+local function layout()
+  if InCombatLockdown() then
+    pendingLayout = true
+    return
+  end
+  pendingLayout = false
+  if db.layout == "row" then layoutRow() else layoutGroups() end
   container:SetScale(db.scale)
 end
 
@@ -815,6 +888,22 @@ local function createFrames()
   bindCapture:SetScript("OnGamePadButtonDown", onCaptureKey)
   bindCapture:Hide()
 
+  for g, text in ipairs(GROUP_LABEL) do
+    local label = container:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+    label:SetHeight(GROUP_LABEL_HEIGHT)
+    label:SetJustifyH("LEFT")
+    label:SetText(text)
+    groupLabels[g] = label
+  end
+  for k = 1, 4 do
+    local slot = CreateFrame("Frame", nil, container)
+    slot:SetSize(BUTTON_SIZE, BUTTON_SIZE)
+    local bg = slot:CreateTexture(nil, "BACKGROUND")
+    bg:SetAllPoints()
+    bg:SetColorTexture(0, 0, 0, 0.25)
+    addBorder(slot, 0.2, 0.2, 0.2, 1)
+    reservedSlots[k] = slot
+  end
   for i = 1, NUM_BUTTONS do
     buttons[i] = createButton(i)
     pageButton:SetFrameRef("b" .. i, buttons[i])
@@ -850,6 +939,14 @@ local function copyDefaults(target, defaults)
   end
 end
 
+-- Controller defaults: each bar's D-pad and face buttons under its trigger
+-- (Base = bare, LT = Shift, RT = Ctrl, LT+RT = both). Only for a fresh set.
+local function seedPadDefaults()
+  for i = 1, NUM_BUTTONS do
+    db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]]
+  end
+end
+
 local function onInterfaceTransition()
   if db and db.mode == "auto" then applyBindings() end
   if db then applyBlizzardVisibility() end
@@ -863,6 +960,8 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     FlatCrossbarDB = FlatCrossbarDB or {}
     db = FlatCrossbarDB
     copyDefaults(db, DEFAULTS)
+    if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
+    db.padSeeded = true
     createFrames()
     restorePosition()
     layout()
@@ -913,7 +1012,10 @@ local HELP = {
   "/fcb page 1-3 - show that crossbar page",
   "/fcb wheel - preview the wheel   /fcb wheelpage 1-4   /fcb wheelscale N",
   "/fcb bindto wheel|wheelnext|wheelprev|pagenext|pageprev - bind that, then press a key",
-  "/fcb cols N - buttons per row (1-28)   /fcb scale N - bar scale",
+  "/fcb layout groups|row - four trigger groups (Base, LT, RT, LT+RT), or one row",
+  "/fcb groupcols 1-4 - groups per row   /fcb cols N - buttons per row (row layout)",
+  "/fcb padreset - put the controller binds back to the default trigger layout",
+  "/fcb scale N - bar scale",
   "/fcb lock | unlock - dragging the bar and (without Shift) its buttons",
   "/fcb blizzard on|off - hide or show Blizzard's own crossbar",
   "/fcb show | hide - this bar",
@@ -978,6 +1080,21 @@ SlashCmdList.FLATCROSSBAR = function(input)
   elseif cmd == "page" then
     local n = tonumber(arg)
     if n then applyPage(n) else print_("/fcb page 1-" .. NUM_PAGES) end
+  elseif cmd == "layout" then
+    if arg == "groups" or arg == "row" then
+      db.layout = arg
+      layout()
+    else
+      print_("/fcb layout groups|row")
+    end
+  elseif cmd == "groupcols" then
+    local n = tonumber(arg)
+    if n and n >= 1 and n <= #GROUP_LABEL then db.groupCols = math.floor(n); layout() else print_("/fcb groupcols 1-" .. #GROUP_LABEL) end
+  elseif cmd == "padreset" then
+    if InCombatLockdown() then return print_("can't change keybinds in combat.") end
+    seedPadDefaults()
+    applyBindings()
+    print_("controller binds reset to the default trigger layout.")
   elseif cmd == "cols" then
     local n = tonumber(arg)
     if n then db.cols = math.floor(n); layout() else print_("/fcb cols 1-" .. NUM_BUTTONS) end

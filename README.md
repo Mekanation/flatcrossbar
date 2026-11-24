@@ -50,3 +50,11 @@ Not run in the client yet. Things to check first:
 `pip install lupa`, then `python flatcrossbar/tests/smoke.py`. It loads the addon against
 stubbed WoW APIs and walks the events, slash commands and wheel flow. It checks the
 addon's own logic, not game behaviour.
+
+## Layout
+
+By default the bar shows the crossbar's four bars as four 2x4 blocks: Base, LT, RT and LT+RT, each with the D-pad on the top row and the face buttons below. The base block's face buttons are reserved by the game and shown empty. On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for Base, with Shift for LT, Ctrl for RT and both for LT+RT. This follows the key-modifier convention that ClassicConsoleGamepadUI uses for the triggers and has not been checked against the real client.
+
+- `/fcb layout groups|row` switches between the blocks and the single 28-button row.
+- `/fcb groupcols 1-4` sets how many blocks sit side by side.
+- `/fcb padreset` puts the controller binds back to the defaults.
