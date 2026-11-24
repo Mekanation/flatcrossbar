@@ -1183,6 +1183,45 @@ local function anyYieldFrameShown()
   return false
 end
 
+-- Key log ----------------------------------------------------------------------
+
+-- /fcb keys: prints every key, controller button and modifier change the game
+-- delivers, to see how the triggers and bumpers arrive (as buttons, or as Shift,
+-- Ctrl and Alt from Steam Input).
+local keyLogger
+
+local function toggleKeyLogger()
+  if InCombatLockdown() then return print_("can't start the key log in combat.") end
+  if not keyLogger then
+    keyLogger = CreateFrame("Frame", nil, UIParent)
+    keyLogger:SetSize(1, 1)
+    keyLogger:SetPoint("CENTER")
+    keyLogger:EnableKeyboard(true)
+    if keyLogger.EnableGamePadButton then keyLogger:EnableGamePadButton(true) end
+    keyLogger:SetPropagateKeyboardInput(true)
+    local function logger(what)
+      return function(_, key) print_(what .. ": " .. tostring(key)) end
+    end
+    keyLogger:SetScript("OnKeyDown", logger("key down"))
+    keyLogger:SetScript("OnKeyUp", logger("key up"))
+    keyLogger:SetScript("OnGamePadButtonDown", logger("pad down"))
+    keyLogger:SetScript("OnGamePadButtonUp", logger("pad up"))
+    keyLogger:SetScript("OnEvent", function(_, _, key, state)
+      print_("modifier: " .. tostring(key) .. " " .. tostring(state))
+    end)
+    keyLogger:SetScript("OnShow", function(self) self:RegisterEvent("MODIFIER_STATE_CHANGED") end)
+    keyLogger:SetScript("OnHide", function(self) self:UnregisterEvent("MODIFIER_STATE_CHANGED") end)
+    keyLogger:Hide()
+  end
+  if keyLogger:IsShown() then
+    keyLogger:Hide()
+    print_("key log off")
+  else
+    keyLogger:Show()
+    print_("key log on: press LT, RT, LB, RB and the D-pad, then /fcb keys again to stop.")
+  end
+end
+
 local function onInterfaceTransition()
   if db and db.mode == "auto" then applyBindings() end
   if db then applyBlizzardVisibility() end
@@ -1332,6 +1371,7 @@ local HELP = {
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
   "/fcb yield [on|off] | add FrameName | remove FrameName | list - pad binds step aside while a bag/bank/vendor window is open",
+  "/fcb keys - print every key and controller button the game receives (to see how LT and RT arrive)",
   "/fcb fade [on|off|0-1] - dim the other bars while one is held (LT, RT, LB, RB)",
   "/fcb macros [create|on|off] - the FCB Tab Enemy / FCB Tab Friend macros (made on login if missing)",
   "/fcb scale N|auto - bar scale (auto fits the screen)",
@@ -1441,6 +1481,8 @@ SlashCmdList.FLATCROSSBAR = function(input)
     elseif n and n >= 0 and n <= 1 then db.fade = true; db.fadeAlpha = n
     elseif arg ~= "" then return print_("/fcb fade on|off|0-1") end
     print_("fade " .. (db.fade and ("on, other bars at " .. db.fadeAlpha) or "off"))
+  elseif cmd == "keys" then
+    toggleKeyLogger()
   elseif cmd == "macros" then
     if arg == "on" then db.autoMacros = true elseif arg == "off" then db.autoMacros = false end
     if InCombatLockdown() then return print_("can't make macros in combat.") end

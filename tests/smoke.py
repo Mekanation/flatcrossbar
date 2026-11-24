@@ -235,6 +235,8 @@ try('/fcb mode keyboard', slash, 'mode keyboard')
 try('/fcb mode controller (no icons)', slash, 'mode controller')
 note('glyph shown without icons: ' .. tostring(G.FlatCrossbarButton1.Glyph:IsShown()) .. ', text shown: ' .. tostring(G.FlatCrossbarButton1.GlyphText:IsShown()))
 InputIconTextureSetUtility = keep
+try('/fcb keys on', slash, 'keys')
+try('/fcb keys off', slash, 'keys')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')
