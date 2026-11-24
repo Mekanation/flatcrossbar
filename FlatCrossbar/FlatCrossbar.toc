@@ -7,4 +7,3 @@
 ## SavedVariablesPerCharacter: FlatCrossbarDB
 
 FlatCrossbar.lua
-Bindings.xml
