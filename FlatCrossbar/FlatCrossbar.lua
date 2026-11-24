@@ -4,7 +4,7 @@
 -- storage slots": 3 standard pages x 4 bars (top/left/right/bottom) x 8
 -- buttons, with the top bar's right-hand 4 reserved for UI actions, leaving
 -- 28 usable buttons per page (pages 1-2 are paged here; page 3's left and
--- right bars hold the two double-tap bars). Blizzard shows only one bar at a time and picks
+-- right and bottom bars hold the three shoulder bars). Blizzard shows only one bar at a time and picks
 -- it with the trigger modifiers. This addon shows all 28 of a page at once as
 -- ordinary buttons over the same storage slots, so whatever you set up on the
 -- crossbar shows up here, and the other way round.
@@ -26,9 +26,9 @@
 local ADDON = ...
 
 local MAIN_BUTTONS = 28 -- the four crossbar bars, paged
-local NUM_BUTTONS = 44 -- plus the two double-tap bars, 8 buttons each
+local NUM_BUTTONS = 52 -- plus the three shoulder bars (LB, RB, LB+RB), 8 buttons each
 local NUM_PAGES = 2 -- pages the main bars cycle through
-local EXTRA_PAGE = 3 -- the double-tap bars live in this page's left and right bars
+local EXTRA_PAGE = 3 -- the shoulder bars live in this page's left, right and bottom bars
 local BUTTON_SIZE = 38
 local SPACING = 4
 local HEADER_HEIGHT = 18
@@ -47,6 +47,7 @@ local DEFAULTS = {
   pad = {},
   helper = true,
   hideButtons = false,
+  autoMacros = true,
   groupPoints = {},
   scale = 1,
   page = 1,
@@ -106,19 +107,19 @@ end
 local PAGE_UNIT_SLOT_IDS = {}
 for id = 1, 4 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 for id = 9, 32 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
--- The double-tap bars: 9-16 (left bar) and 17-24 (right bar), on EXTRA_PAGE.
-for id = 9, 24 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
+-- The shoulder bars: 9-16 (left bar), 17-24 (right bar) and 25-32 (bottom bar), on EXTRA_PAGE.
+for id = 9, 32 do PAGE_UNIT_SLOT_IDS[#PAGE_UNIT_SLOT_IDS + 1] = id end
 
 -- The crossbar's four bars are 8 buttons each (slots 1-4 on the D-pad, 5-8 on
 -- the face buttons) and are picked by the triggers held: none = top, LT = left,
 -- RT = right, LT+RT = bottom (PageUnit.lua). The groups layout draws each bar as
 -- a small 2x4 block under its trigger label.
 local GROUP_SIZE = 8
-local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LT x2", "RT x2" }
+local GROUP_LABEL = { "Base", "LT", "RT", "LT+RT", "LB", "RB", "LB+RB" }
 -- The triggers reach the game as Shift (LT) and Ctrl (RT) when binding keys.
--- The double taps are Alt (LT) and Alt+Ctrl (RT): set a Steam Input "Double Press"
--- activator on each trigger to send them.
-local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-" }
+-- The shoulder bars are Alt (LB), Alt+Ctrl (RB) and Alt+Shift (LB+RB): Steam Input
+-- sends those for the shoulder buttons, which are not modifiers by themselves.
+local GROUP_PREFIX = { "", "SHIFT-", "CTRL-", "CTRL-SHIFT-", "ALT-", "ALT-CTRL-", "ALT-SHIFT-" }
 local SLOT_PAD = { "PADDLEFT", "PADDUP", "PADDRIGHT", "PADDDOWN", "PAD3", "PAD4", "PAD2", "PAD1" }
 local BUTTON_GROUP, BUTTON_SLOT = {}, {}
 for i, id in ipairs(PAGE_UNIT_SLOT_IDS) do
@@ -185,7 +186,8 @@ local function shortKey(key)
     -- On a controller button, Shift and Ctrl are the left and right triggers.
     local out
     if mods:find("ALT%-") then
-      out = mods:find("CTRL%-") and "RT2+" or "LT2+" -- the double-tap bars
+      -- the shoulder bars
+      out = mods:find("CTRL%-") and "RB+" or (mods:find("SHIFT%-") and "LB+RB+" or "LB+")
     else
       out = (mods:find("SHIFT%-") and "LT+" or "") .. (mods:find("CTRL%-") and "RT+" or "")
     end
@@ -476,10 +478,10 @@ local HANDLE_HEIGHT = 12
 local SIDE_WIDTH = 52
 
 -- What is held for each bar, and for each of its two rows, shown beside it.
-local SIDE_COMBO = { "", "LT +", "RT +", "LT+RT +", "2x LT +", "2x RT +" }
+local SIDE_COMBO = { "", "LT +", "RT +", "LT+RT +", "LB +", "RB +", "LB+RB +" }
 local SIDE_ROW = { "D-pad", "X Y B A" }
 
--- The four crossbar bars in a row; the double-tap bars above LT and RT.
+-- The four crossbar bars in a row; the shoulder bars above LT, RT and LT+RT.
 local function groupDefaultPoint(g)
   local step = GROUP_WIDTH + SIDE_WIDTH + GROUP_GAP
   local column = g > 4 and (g - 3) or g
@@ -1045,6 +1047,30 @@ local function seedPadDefaults(from)
   end
 end
 
+-- Tab-target macros ------------------------------------------------------------
+
+-- Made on login when missing, so they can be dragged from the macro window
+-- (/macro) onto the bars.
+local MACROS = {
+  { name = "FCB Tab Enemy", body = "/targetenemy" },
+  { name = "FCB Tab Friend", body = "/targetfriendplayer" },
+}
+local MACRO_ICON = 134400 -- the question mark; change it in the macro window
+
+local function ensureMacros()
+  if InCombatLockdown() or not (CreateMacro and GetMacroIndexByName) then return end
+  local made = {}
+  for _, m in ipairs(MACROS) do
+    if GetMacroIndexByName(m.name) == 0 then
+      local ok, index = pcall(CreateMacro, m.name, MACRO_ICON, m.body, false)
+      if ok and index then made[#made + 1] = m.name end
+    end
+  end
+  if #made > 0 then
+    print_("made macro " .. table.concat(made, ", ") .. ". Open /macro and drag them onto a button.")
+  end
+end
+
 local function onInterfaceTransition()
   if db and db.mode == "auto" then applyBindings() end
   if db then applyBlizzardVisibility() end
@@ -1060,10 +1086,12 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     copyDefaults(db, DEFAULTS)
     if not db.padSeeded and next(db.pad) == nil then seedPadDefaults() end
     db.padSeeded = true
-    if not db.extraSeeded then
-      -- Saves from before the double-tap bars: give those 16 buttons their defaults.
-      if db.pad[MAIN_BUTTONS + 1] == nil then seedPadDefaults(MAIN_BUTTONS + 1) end
-      db.extraSeeded = true
+    if (db.extraSeedVersion or 0) < 2 then
+      -- Saves from before the shoulder bars: give the buttons without a bind their defaults.
+      for i = MAIN_BUTTONS + 1, NUM_BUTTONS do
+        if db.pad[i] == nil then db.pad[i] = GROUP_PREFIX[BUTTON_GROUP[i]] .. SLOT_PAD[BUTTON_SLOT[i]] end
+      end
+      db.extraSeedVersion = 2
     end
     local built, err = pcall(function()
       createFrames()
@@ -1095,6 +1123,7 @@ events:SetScript("OnEvent", function(_, event, arg1, arg2, arg3)
     applyPage(db.page)
     applyBindings()
     applyBlizzardVisibility()
+    if db.autoMacros then ensureMacros() end
   elseif event == "PLAYER_REGEN_DISABLED" then
     wheel:Hide()
   elseif event == "PLAYER_REGEN_ENABLED" then
@@ -1126,6 +1155,7 @@ local HELP = {
   "/fcb helper [on|off] - the combo text beside each bar (LT +, RT + ...)",
   "/fcb hidebuttons | showbuttons - the KB/PAD toggle, Pg and Bind buttons",
   "/fcb padreset - put the controller binds back to the default trigger layout",
+  "/fcb macros [create|on|off] - the FCB Tab Enemy / FCB Tab Friend macros (made on login if missing)",
   "/fcb scale N - bar scale",
   "/fcb unlock | lock - show / hide the drag handles (hold Shift to drag actions off a locked bar)",
   "/fcb blizzard on|off - hide or show Blizzard's own crossbar",
@@ -1210,6 +1240,11 @@ SlashCmdList.FLATCROSSBAR = function(input)
   elseif cmd == "page" then
     local n = tonumber(arg)
     if n then applyPage(n) else print_("/fcb page 1-" .. NUM_PAGES) end
+  elseif cmd == "macros" then
+    if arg == "on" then db.autoMacros = true elseif arg == "off" then db.autoMacros = false end
+    if InCombatLockdown() then return print_("can't make macros in combat.") end
+    ensureMacros()
+    print_("macros are made on login: " .. (db.autoMacros and "on" or "off") .. ". Names: FCB Tab Enemy, FCB Tab Friend.")
   elseif cmd == "padreset" then
     if InCombatLockdown() then return print_("can't change keybinds in combat.") end
     seedPadDefaults()

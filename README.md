@@ -63,14 +63,21 @@ On a first run the controller binds are set to match: D-pad and X/Y/B/A bare for
 - `/fcb resetpos` puts the blocks and toolbar back in their default spots.
 - `/fcb padreset` puts the controller binds back to the defaults.
 
-## Double-tap bars
+## Shoulder bars
 
-Two more blocks, **LT x2** and **RT x2**, give a double-tap of each trigger its own 8 buttons. They sit above the LT and RT blocks and are bound under Alt (LT x2) and Alt+Ctrl (RT x2), so they work in combat. The addon does not detect the double-tap itself: set it up in Steam Input.
+Three more blocks, **LB**, **RB** and **LB+RB**, sit above the LT, RT and LT+RT blocks with 8 buttons each. They are bound under Alt (LB), Alt+Ctrl (RB) and Alt+Shift (LB+RB), so they work in combat. A shoulder button is not a modifier by itself, so Steam Input has to send those:
 
-1. For the left trigger, add a **Double Press** activator that outputs `Alt`.
-2. For the right trigger, add a **Double Press** activator that outputs `Alt` and `Ctrl` together (two commands on the one activator).
-3. Keep the normal single-press bindings for the triggers (Shift for LT, Ctrl for RT).
+1. Left bumper: output `Alt` while held.
+2. Right bumper: output `Alt` and `Ctrl` while held.
+3. Both bumpers: output `Alt` and `Shift` (a chord on one of them).
+4. Keep the triggers as Shift (LT) and Ctrl (RT).
 
-Their actions are stored in page 3's left and right crossbar bars, so paging now cycles pages 1-2 only. The page-3 buttons still show in the game's own crossbar editor. Saves from before this change get the default binds for the 16 new buttons once.
+Don't hold LT or RT together with a bumper: Alt+Shift is both "LB+RB" and "LT with LB", so they would trigger the same bar. Any button can be rebound with `/fcb bind` if you pick other outputs.
 
-Not checked in the real client: that Alt and Alt+Ctrl are free in the game's controller mode, and that a Steam Input double-press holds the output while the second press is held.
+Their actions are stored in page 3's left, right and bottom crossbar bars, so paging cycles pages 1-2 only. The page-3 buttons still show in the game's crossbar editor. Saves from before this change get the default binds for any new buttons once.
+
+Not checked in the real client: that Alt, Alt+Ctrl and Alt+Shift are free in the game's controller mode, and how Steam Input handles the LB+RB chord.
+
+## Tab-target macros
+
+On login the addon makes two account macros if they are missing: **FCB Tab Enemy** (`/targetenemy`) and **FCB Tab Friend** (`/targetfriendplayer`). Open `/macro` and drag them onto any button. Their icon is a question mark; change it in the macro window. `/fcb macros` makes them now, `/fcb macros off` stops them being made on login, and `/fcb macros on` turns it back on. I have not checked that these two slash commands exist on Forever.

@@ -87,6 +87,9 @@ PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
 SetOverrideBindingClick = function(owner, pri, key, name, btn) note(('bind %s -> %s:%s'):format(key, name, btn)) end
 ActionButton_ApplyCooldown = nil
+local macros = {}
+GetMacroIndexByName = function(n) return macros[n] and 1 or 0 end
+CreateMacro = function(n, icon, body, perChar) macros[n] = body; note('CreateMacro ' .. n .. ' = ' .. body); return 1 end
 wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 C_ActionBar = setmetatable({
   HasAction = function(a) return a == 1000 end,
@@ -175,7 +178,7 @@ note('attrs after post-click: ' .. tostring(wbtn:GetAttribute('type')))
 
 try('wheel page click', wpage.__scripts.OnClick, wpage, 'LeftButton')
 try('/fcb wheelpage 3', slash, 'wheelpage 3')
-note('extras: b29 action=' .. tostring(G.FlatCrossbarButton29:GetAttribute('action')) .. ' b37=' .. tostring(G.FlatCrossbarButton37:GetAttribute('action')) .. ' b44 parent=' .. tostring(G.FlatCrossbarButton44.__parent) .. ', pad29=' .. tostring(FlatCrossbarDB.pad[29]) .. ' pad37=' .. tostring(FlatCrossbarDB.pad[37]))
+note('extras: b29=' .. tostring(G.FlatCrossbarButton29:GetAttribute('action')) .. ' b37=' .. tostring(G.FlatCrossbarButton37:GetAttribute('action')) .. ' b45=' .. tostring(G.FlatCrossbarButton45:GetAttribute('action')) .. ' b52 parent=' .. tostring(G.FlatCrossbarButton52.__parent) .. ', pad29=' .. tostring(FlatCrossbarDB.pad[29]) .. ' pad37=' .. tostring(FlatCrossbarDB.pad[37]) .. ' pad45=' .. tostring(FlatCrossbarDB.pad[45]))
 note('groups: ' .. tostring(G.FlatCrossbarGroup1 ~= nil) .. tostring(G.FlatCrossbarGroup4 ~= nil) .. ', button 9 parent = ' .. tostring(G.FlatCrossbarButton9 and G.FlatCrossbarButton9.__parent))
 try('/fcb hidebuttons', slash, 'hidebuttons')
 note('page button shown after hidebuttons: ' .. tostring(G.FlatCrossbarPageButton:IsShown()))
@@ -189,6 +192,8 @@ try('/fcb hide', slash, 'hide')
 note('group 1 shown after hide: ' .. tostring(G.FlatCrossbarGroup1:IsShown()))
 try('/fcb show', slash, 'show')
 try('/fcb resetpos', slash, 'resetpos')
+try('/fcb macros', slash, 'macros')
+try('/fcb macros off', slash, 'macros off')
 try('/fcb padreset', slash, 'padreset')
 note('seeded pad binds: b1=' .. tostring(FlatCrossbarDB.pad[1]) .. ' b5=' .. tostring(FlatCrossbarDB.pad[5]) .. ' b13=' .. tostring(FlatCrossbarDB.pad[13]) .. ' b21=' .. tostring(FlatCrossbarDB.pad[21]))
 try('/fcb status', slash, 'status')
