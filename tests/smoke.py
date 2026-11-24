@@ -96,6 +96,8 @@ PickupAction = function() end
 PlaceAction = function() end
 ClearOverrideBindings = function() note('ClearOverrideBindings') end
 BINDS = 0
+GetBindingAction = function(k) return 'ACTION_' .. k end
+C_Timer = { After = function() end }
 STYLE = 1
 Enum = { InputDeviceInterfaceType = { MouseKeyboard = 1, Gamepad = 2 } }
 C_InputInterfaceStyle = { GetCurrentStyle = function() return STYLE end }
@@ -269,6 +271,8 @@ try('/fcb mode controller (no icons)', slash, 'mode controller')
 note('glyph shown without icons: ' .. tostring(G.FlatCrossbarButton1.Glyph:IsShown()) .. ', text shown: ' .. tostring(G.FlatCrossbarButton1.GlyphText:IsShown()))
 InputIconTextureSetUtility = keep
 try('/fcb keys on', slash, 'keys')
+local logger = G.FlatCrossbarKeyLogger
+try('log a press', logger.__scripts.OnGamePadButtonDown, logger, 'PAD1')
 try('/fcb keys off', slash, 'keys')
 try('/fcb wheelbars', slash, 'wheelbars')
 try('/fcb wheelbars 6 7', slash, 'wheelbars 6 7')

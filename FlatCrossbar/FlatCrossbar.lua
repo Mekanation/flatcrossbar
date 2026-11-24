@@ -1579,14 +1579,24 @@ local keyLogger
 local function toggleKeyLogger()
   if InCombatLockdown() then return print_("can't start the key log in combat.") end
   if not keyLogger then
-    keyLogger = CreateFrame("Frame", nil, UIParent)
+    keyLogger = CreateFrame("Frame", "FlatCrossbarKeyLogger", UIParent)
+    keyLogger:SetFrameStrata("BACKGROUND") -- behind everything else that listens for keys
     keyLogger:SetSize(1, 1)
     keyLogger:SetPoint("CENTER")
     keyLogger:EnableKeyboard(true)
     if keyLogger.EnableGamePadButton then keyLogger:EnableGamePadButton(true) end
     keyLogger:SetPropagateKeyboardInput(true)
+    -- For a press, also what the key is bound to right now (overrides included): that
+    -- shows which binding holds a button, ours or another addon's or the game's.
     local function logger(what)
-      return function(_, key) print_(what .. ": " .. tostring(key)) end
+      return function(_, key)
+        local action
+        if what:find("down") then
+          local ok, bound = pcall(GetBindingAction, key, true)
+          action = ok and bound ~= nil and bound ~= "" and (" -> " .. tostring(bound)) or " -> (nothing)"
+        end
+        print_(what .. ": " .. tostring(key) .. (action or ""))
+      end
     end
     keyLogger:SetScript("OnKeyDown", logger("key down"))
     keyLogger:SetScript("OnKeyUp", logger("key up"))
@@ -1604,7 +1614,19 @@ local function toggleKeyLogger()
     print_("key log off")
   else
     keyLogger:Show()
-    print_("key log on: press LT, RT, LB, RB and the D-pad, then /fcb keys again to stop.")
+    local token = (rawget(keyLogger, "token") or 0) + 1
+    keyLogger.token = token
+    -- It listens for buttons itself, so it may keep some from other windows: it stops on
+    -- its own after 30 seconds.
+    if C_Timer and C_Timer.After then
+      C_Timer.After(30, function()
+        if rawget(keyLogger, "token") == token and keyLogger:IsShown() then
+          keyLogger:Hide()
+          print_("key log off (30 seconds are up)")
+        end
+      end)
+    end
+    print_("key log on for 30 seconds: press the buttons, then /fcb keys again to stop. Turn it off before testing a window: it can take buttons from it.")
   end
 end
 
@@ -1867,6 +1889,10 @@ SlashCmdList.FLATCROSSBAR = function(input)
 
   if cmd == "status" then
     print_("build error: " .. tostring(buildError))
+    for _, key in ipairs({ "PAD1", "PAD2", "PAD3", "PAD4", "PADDLEFT", "PADDRIGHT", "PADLSTICK" }) do
+      local ok, bound = pcall(GetBindingAction, key, true)
+      print_(key .. " is bound to: " .. tostring(ok and bound ~= "" and bound or "(nothing)"))
+    end
     print_("cooldown fallback in use: " .. tostring(cooldownError ~= nil) .. (cooldownError and (" (" .. cooldownError .. ")") or ""))
     print_("the game says bar " .. tostring(gameActiveBar()) .. " is in use (1 Base, 2 LT, 3 RT, 4 LT+RT; nil = it can't tell)")
     print_("wheel: action bars " .. table.concat(db.wheelBars, ", ") .. ", " .. #wheelSlots .. " slots"
