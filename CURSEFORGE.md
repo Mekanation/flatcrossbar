@@ -23,7 +23,28 @@ Paste into the CurseForge project description (it accepts Markdown).
 
 Type `/fcb` for the command list. `/fcb unlock` lets you drag the bars; `/fcb mode controller|keyboard|auto` picks the keybind set.
 
-The LB, RB and trigger double-press bars need Steam Input to send Alt, Alt+Ctrl, Alt+Shift and Alt+Ctrl+Shift for those buttons. Analog output must be off for both triggers so the double press registers. The README in the download has a table.
+## Steam Input setup (Steam Deck and controllers)
+
+The four main bars (Base, LT, RT, LT+RT) work with the game's own controller input and need no setup. The other four bars need Steam Input, because a shoulder button or a double press is not a modifier on its own.
+
+**Easiest: use the community layout.** In Steam, open the game's controller settings, go to Browse Community Layouts and pick **WOW: Forever FlatCrossBar Addon**. It sets up everything below for you.
+
+**Or set it up yourself.** Make Steam Input send these keys:
+
+| Bar | Hold | Steam Input outputs |
+| --- | --- | --- |
+| LB | left bumper | `Alt` |
+| RB | right bumper | `Alt` + `Ctrl` |
+| LT x2 | double-press left trigger | `Alt` + `Shift` |
+| RT x2 | double-press right trigger | `Alt` + `Ctrl` + `Shift` |
+
+A single press of LT and RT stays as the normal triggers.
+
+Things to know:
+- **Turn analog output off for both triggers** (set them to digital button output). Otherwise Steam Input doesn't offer the double-press option for them.
+- Don't hold a trigger together with a bumper. The combinations overlap (Alt+Shift is both "LT x2" and "LB with LT"), so the same bar would fire.
+- With LB and RB sending Alt, the game no longer sees the bumpers, so windows that use them for tabs or pages won't respond to LB/RB. Put the bumper bars on a Steam Input action layer you can switch off, or only enable them while playing. This also affects BagPad's LB (compare gear) and RB (DataPad).
+- Prefer other outputs? Rebind any bar's buttons with `/fcb bind`.
 
 ## Notes
 
