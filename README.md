@@ -28,23 +28,6 @@ Install: copy the `FlatCrossbar` folder into `_forever_/Interface/AddOns/`.
 - Hides Blizzard's crossbar (`/fcb blizzard on` to show it again).
 
 `/fcb` lists the commands.
-
-## Not tested in game
-
-Written against the `forever` branch of Gethe/wow-ui-source (1.60.1.70532).
-Not run in the client yet. Things to check first:
-
-- Buttons show the actions you have on the crossbar.
-- Controller capture: `EnableGamePadButton` / `OnGamePadButtonDown` on the Bind
-  frame, and that PAD names (e.g. `PAD1`) work with override bindings.
-- Trigger combos need modifier emulation (e.g. `GamePadEmulateShift`); the
-  capture records them as `SHIFT-PAD1` etc.
-- Wheel: the selected slice's action is copied onto the `Wheel` button's secure
-  attributes while aiming, and releasing the key clicks it. That relies on the
-  `useOnKeyDown` attribute to fire on release, and I assumed the right stick is
-  `sticks[2]` in `C_GamePad.GetDeviceMappedState`.
-- The vehicle/possess page and stance bars are not shown.
-
 ## Tests
 
 `pip install lupa`, then `python flatcrossbar/tests/smoke.py`. It loads the addon against
